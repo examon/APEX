@@ -1,5 +1,9 @@
-int x(void) {
-  return 1;
+void x(void) {
+  int i = 0;
+}
+
+void n(void) {
+  int n = 1;
 }
 
 int z(void) {
@@ -11,9 +15,7 @@ int y(void) {
   return c;
 }
 
-int n(void) {
-  return 2;
-}
+
 
 int main() {
   x();
