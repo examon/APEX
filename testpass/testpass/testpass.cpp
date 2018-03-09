@@ -24,9 +24,8 @@ struct TestPass : public FunctionPass {
     StringRef id = F.getGlobalIdentifier();
 
     id_calls[id] = std::vector<Function *>();
-      errs() << "\nin fcn: " << F.getName() << "\n";
+    errs() << "\nin fcn: " << F.getName() << "\n";
     for (auto &B : F) {
-
       for (auto &I : B) {
         // Check if we are on the call instruction. If yes, get it.
         if (auto callinst = dyn_cast<CallInst>(&I)) {
@@ -35,13 +34,10 @@ struct TestPass : public FunctionPass {
           I.dump();
 
           if (called_fcn->getName() == "x") {
-            //I.eraseFromParent();
             errs() << "should remove here\n";
             instruction_to_erase.push_back(&I);
           }
         }
-
-
       }
     }
 
@@ -54,16 +50,9 @@ struct TestPass : public FunctionPass {
       errs() << "\n";
     }
 
-    return false;
-  }
-
-  virtual bool doFinalization(Module &M) {
-    // TODO: this is not working, not erasing istruction
     for (auto &I : instruction_to_erase) {
       I->eraseFromParent();
     }
-    errs() << "OUT\n";
-
     return false;
   }
 };
