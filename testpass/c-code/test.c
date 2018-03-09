@@ -1,5 +1,7 @@
+#include <stdio.h>
+
 void x(void) {
-  int i = 0;
+  printf("in x\n");
 }
 
 void n(void) {
