@@ -4,8 +4,8 @@ void x(void) {
   printf("in x\n");
 }
 
-void n(void) {
-  int n = 1;
+int n(void) {
+  return 1;
 }
 
 int z(void) {
@@ -22,6 +22,7 @@ int y(void) {
 int main() {
   x();
   int r = y();
+  printf("RESULT: %d\n<<<<<<\n", r);
   n();
   return r;
 }
