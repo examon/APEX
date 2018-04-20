@@ -17,6 +17,7 @@ opt -o build/test_after_default_opt.bc -mem2reg -dce -loop-simplify -simplifycfg
 
 # run our pass
 opt -o build/test_after_testpass.bc -load build/testpass/libTestPass.so -testpass < build/test_after_default_opt.bc > /dev/null
+exit
 
 # run callgraph exporter
 cd build
