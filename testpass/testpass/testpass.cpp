@@ -1,3 +1,8 @@
+/* Tomas Meszaros
+ *
+ * Testpass
+ */
+
 // Some relevant docs:
 // https://llvm.org/doxygen/classllvm_1_1CallGraphWrapperPass.html
 // https://llvm.org/doxygen/CallGraph_8h_source.html
@@ -7,19 +12,19 @@
 // https://github.com/llvm-mirror/llvm/blob/master/tools/opt/PrintSCC.cpp
 // https://github.com/mr-ma/llvm-pass-callgraph/blob/master/hello.c
 
+// TODO: setup input e.g. target function to reach
+// TODO: check if target function is reachable
+
 #include <vector>
 
 #include "llvm/Analysis/CallGraph.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "testpass_config.h"
 
 using namespace llvm;
+
 
 namespace {
 struct TestPass : public ModulePass {
@@ -27,18 +32,37 @@ struct TestPass : public ModulePass {
   TestPass() : ModulePass(ID) {}
   bool runOnModule(Module &M) override;
 
+  /* Setting CallGraphWrapperPass, which will run before our pass.
+     We will access output from this pass with getAnalysis<> later.
+   */
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
     AU.addRequired<CallGraphWrapperPass>();
   }
+
+  /* Our own stuff.
+   */
+  void traverse_callgraph(void);
 };
 }
+
+/* Registering our own pass, so it can be ran via opt.
+ */
 char TestPass::ID = 0;
-static RegisterPass<TestPass> X("testpass", "Just a test pass.",
+static RegisterPass<TestPass> X("testpass", "Just a test pass. Work in progress.",
                                 false /* Only looks at CFG */,
                                 false /* Analysis Pass */);
 
+/* Running on each module.
+ */
 bool TestPass::runOnModule(Module &M) {
+  // TODO: construct standalone graph or use CallGraph?
+  traverse_callgraph();
+  // TODO: figure out how to automatically extract needed path to target
+  return true;
+}
+
+void TestPass::traverse_callgraph(void) {
   CallGraph &CallGraph = getAnalysis<CallGraphWrapperPass>().getCallGraph();
 
   for (auto &node : CallGraph) {
@@ -86,6 +110,4 @@ bool TestPass::runOnModule(Module &M) {
       errs() << "======\n";
     }
   }
-
-  return true;
 }
