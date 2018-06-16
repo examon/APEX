@@ -1,6 +1,3 @@
-build:
-	bash testpass/build_and_run.sh
-
 clean:
 	rm -rf testpass/build
 	rm -rf testpass/cmake-build-debug

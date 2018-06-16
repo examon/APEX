@@ -1,40 +1,29 @@
 #include <stdio.h>
 
+void x(void);
+void y(void);
+void a(void);
+void b(void);
+
 void x(void) {
   printf("in x\n");
+  y();
 }
 
-int n(void) {
-  return 1;
+void y(void) {
+  printf("in y\n");
 }
 
-int z(void) {
-  return 100;
+void a(void) {
+  printf("in z\n");
+  b();
 }
 
-int y(void) {
-  int c = z();
-  return c;
+void b(void) {
+  printf("in z\n");
 }
-
-
 
 int main() {
   x();
-  int r = y();
-  printf("RESULT: %d\n<<<<<<\n", r);
-  n();
-  return r;
+  a();
 }
-
-/*
-
- main -> x
-      -> y -> z
-      -> n
-
- target z, after pass should be
-
- main -> y -> z
-
- */
