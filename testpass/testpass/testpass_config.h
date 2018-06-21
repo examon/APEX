@@ -4,3 +4,4 @@
  */
 
 bool _DEBUG = true;
+bool _LOG = true;
