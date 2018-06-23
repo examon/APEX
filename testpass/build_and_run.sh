@@ -37,7 +37,15 @@ llvm-dis build/test.bc
 llvm-dis build/test_after_default_opt.bc
 llvm-dis build/test_after_testpass.bc
 
+# run bytecode after basic opts
+echo "========= running test.bc"
+lli build/test.bc
+
+# run bytecode after basic opts
+echo "========= running test_after_default_opt.bc"
+lli build/test_after_default_opt.bc
+
 # run pass and execute modified bytecode
-echo "<<<<<< running test_after_testpass.bc >>>>>>"
-lli build/test_after_testpass.bc > /dev/null
+echo "========= running test_after_testpass.bc"
+lli build/test_after_testpass.bc
 
