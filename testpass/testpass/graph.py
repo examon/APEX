@@ -13,14 +13,12 @@ def bfs(graph, start, end):
     queue = []
     queue.append([start])
     while queue:
-        print queue
-        path = queue.pop(0)
-        print path
-        print "-"
-        node = path[-1]
+        path = queue.pop() #list
+        node = path[-1] #str
         if node == end:
             return path
         for adjacent in graph[node]:
+            # adjacent: list
             new_path = list(path)
             new_path.append(adjacent)
             queue.append(new_path)
