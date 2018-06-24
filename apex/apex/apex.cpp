@@ -1,7 +1,11 @@
-/* Tomas Meszaros
+/* Created by Tomas Meszaros (exo at tty dot com, tmeszaro at redhat dot com)
  *
- * APEX
+ * Published under Apache 2.0 license.
+ * See LICENSE for details.
  */
+
+// What is this:
+// This file implements APEXPass, that is llvm pass that can be run via opt.
 
 // Some relevant docs:
 // https://llvm.org/doxygen/classllvm_1_1CallGraphWrapperPass.html
