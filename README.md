@@ -43,7 +43,7 @@ right shows how the call graph looks after APEX transformed IR. <br>
 
 ### Current limitations:
 
-Since APEX is under development, there are some serious limitations:
+Since APEX is under development, there are currently some serious limitations:
 
 ```
 - supports only one compilation module
