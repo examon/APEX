@@ -23,6 +23,9 @@
 
 // TODO: setup input e.g. target function to reach
 // TODO: check if target function is reachable
+// TODO: do not remove functions that target function is calling
+// TODO: move declarations into header
+// TODO: add sanity check for user input
 
 #include <string>
 #include <vector>
@@ -53,7 +56,7 @@ static RegisterPass<TestPass> X("testpass",
 
 // Debug utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void debugDumpModule(Module &M) {
+void debugDumpModule(const Module &M) {
   if (_DEBUG) {
     errs() << ">>>>>>>>> Module dump() BEGINS:\n\n";
     M.dump();
@@ -61,15 +64,7 @@ void debugDumpModule(Module &M) {
   }
 }
 
-void debugDumpCallGraph(CallGraph &CG) {
-  if (_DEBUG) {
-    errs() << ">>>>>>>>> CallGraph dump() BEGINS:\n\n";
-    CG.dump();
-    errs() << "<<<<<<<<< CallGraph dump() ENDS!\n";
-  }
-}
-
-void debugPrint(std::string message) {
+void debugPrint(const std::string &message) {
   if (_DEBUG) {
     errs() << ">>>>>>>>> debugPrint(): " + message + "\n";
   }
@@ -77,7 +72,7 @@ void debugPrint(std::string message) {
 
 // Log utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void logPrint(std::string message) {
+void logPrint(const std::string &message) {
   if (_LOG) {
     errs() << "+++++++++ logPrint(): " + message + "\n";
   }
@@ -89,28 +84,31 @@ void logPrint(std::string message) {
 // and removes these instructions.
 //
 // Returns: number of removed instructions, -1 in case of error
-int removeFunctionCalls(Function *F) {
+int removeFunctionCalls(const Function *F) {
   int calls_removed = 0;
 
   if (nullptr == F) {
     return -1;
   }
 
-  for (Use &use : F->uses()) {
+  logPrint("Proceeding to remove call instructions to: " +
+           F->getGlobalIdentifier());
+  for (const Use &use : F->uses()) {
     if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      std::string message = "in: ";
+      std::string message = "- in: ";
       message += UserInst->getFunction()->getName();
+      message += "; removing call instruction to: ";
+      message += F->getName();
 
       if (!UserInst->getType()->isVoidTy()) {
         // NOTE: Currently only removing void returning calls.
         // TODO: handle non-void returning function calls in the future
-        message += ", removing non-void returning call is not a good idea! ";
-        message += "[ERROR]";
+        message += "; removing non-void returning call is not yet supported! ";
+        message += "[ABORT]";
         logPrint(message);
         return -1;
       }
-      message += ", removing call instruction to: ";
-      message += F->getName();
+
       logPrint(message);
 
       UserInst->eraseFromParent();
@@ -131,11 +129,13 @@ int removeFunction(Function *F) {
     return -1;
   }
 
+  logPrint("Proceeding to remove function: " + F->getGlobalIdentifier());
+
   if (removeFunctionCalls(F) < 0) {
     return -1;
   }
 
-  std::string message = "removing function: ";
+  std::string message = "- removing function: ";
   message += F->getGlobalIdentifier();
   logPrint(message);
 
@@ -143,15 +143,16 @@ int removeFunction(Function *F) {
   return 0;
 }
 
+// TODO: Not used ATM.
 // Collects functions that call function @F into vector @callers.
 //
 // Returns: 0 in case of success, -1 if error.
-int getFunctionCallers(Function *F, std::vector<Function *> &callers) {
+int getFunctionCallers(const Function *F, std::vector<Function *> &callers) {
   if (nullptr == F) {
     return -1;
   }
 
-  for (Use &use : F->uses()) {
+  for (const Use &use : F->uses()) {
     if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
       if (!UserInst->getType()->isVoidTy()) {
         // Currently only removing void returning calls.
@@ -169,7 +170,7 @@ int getFunctionCallers(Function *F, std::vector<Function *> &callers) {
 // Collects functions that are called by function @F into vector @callees.
 //
 // Returns: 0 in case of success, -1 if error.
-int getFunctionCallees(Function *F, std::vector<Function *> &callees) {
+int getFunctionCallees(const Function *F, std::vector<Function *> &callees) {
   if (nullptr == F) {
     return -1;
   }
@@ -192,12 +193,12 @@ int getFunctionCallees(Function *F, std::vector<Function *> &callees) {
 // Graph utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Creates callgraph from module @M, starting from the function with global id
-// specified in @root. Callgraph is saved in vector @callgraph in the pair
+// specified in @root. Callgraph is saved in vector @callgraph in the pairs
 // of the following format: <caller function, vector of called functions>.
 //
 // Returns: 0 in case of success, -1 if error.
 int createCallGraph(
-    Module &M, std::string root,
+    const Module &M, const std::string &root,
     std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
   // Collect root function.
   Function *root_fcn = M.getFunction(root);
@@ -206,7 +207,7 @@ int createCallGraph(
     return -1;
   }
 
-  {  // Construct call graph.
+  { // Construct call graph.
     std::vector<Function *> queue;
     queue.push_back(root_fcn);
 
@@ -238,7 +239,8 @@ int createCallGraph(
 
 // Prints @callgraph.
 void printCallGraph(
-    std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
+    const std::vector<std::pair<Function *, std::vector<Function *>>>
+        &callgraph) {
   for (auto &caller_callees : callgraph) {
     std::string caller = caller_callees.first->getGlobalIdentifier();
     std::string callees = " -> ";
@@ -254,13 +256,14 @@ void printCallGraph(
 }
 
 // Uses BFS to find path in @callgraph from @start to @end (both are global
-// IDs). Result is stored in the @final_path.
+// Function IDs). Result is stored in the @final_path.
 //
 // Returns: 0 in success, -1 if error.
-int findPath(
-    std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph,
-    std::string start, std::string end, std::vector<Function *> &final_path) {
-  {  // Computes path, stores
+int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
+                 &callgraph,
+             const std::string &start, const std::string &end,
+             std::vector<Function *> &final_path) {
+  { // Computes path, stores
     std::vector<std::vector<std::string>> queue;
     std::vector<std::string> v_start;
     v_start.push_back(start);
@@ -272,7 +275,7 @@ int findPath(
 
       std::string node = path.back();
 
-      // Fund the end. Store function pointers to @final_path.
+      // Found the end. Store function pointers to @final_path.
       if (node == end) {
         for (const std::string node_id : path) {
           for (auto &caller_callees : callgraph) {
@@ -285,7 +288,7 @@ int findPath(
         return 0;
       }
 
-      // Find adjacent/called nodes to @node and save them to @callees.
+      // Find adjacent/called nodes of @node and save them to @callees.
       std::vector<Function *> callees;
       for (auto &caller_callees : callgraph) {
         if (node == caller_callees.first->getGlobalIdentifier()) {
@@ -312,17 +315,41 @@ int findPath(
 bool TestPass::runOnModule(Module &M) {
   debugDumpModule(M);
 
+  // Create callgraph from module.
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
-  createCallGraph(M, "main", callgraph);
+  createCallGraph(M, _SOURCE, callgraph);
   printCallGraph(callgraph);
 
+  // Find path from @source to @target in the @callgraph.
   std::vector<Function *> path;
-  findPath(callgraph, "main", "y", path);
+  findPath(callgraph, _SOURCE, _TARGET, path);
   for (auto &node : path) {
     debugPrint(node->getGlobalIdentifier());
   }
 
-  // TODO: remove every function not present in the @path
-  //  debugDumpModule(M);
+  // Remove functions that do not affect calculated execution @path.
+  std::vector<Function *> functions_to_be_removed;
+  { // Collect functions from module that will be removed.
+    for (auto &module_fcn : M.getFunctionList()) {
+      bool module_fcn_to_be_removed = true;
+      for (Function *path_fcn : path) {
+        if (module_fcn.getGlobalIdentifier() ==
+            path_fcn->getGlobalIdentifier()) {
+          module_fcn_to_be_removed = false;
+        }
+      }
+      if (true == module_fcn_to_be_removed) {
+        functions_to_be_removed.push_back(&module_fcn);
+      }
+    }
+  }
+  { // Remove collected functions.
+    for (auto &fcn : functions_to_be_removed) {
+      debugPrint(fcn->getGlobalIdentifier());
+      removeFunction(fcn);
+    }
+  }
+
+  debugDumpModule(M);
   return true;
 }

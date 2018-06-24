@@ -17,6 +17,7 @@ void y(void) {
 void a(void) {
   printf("in a\n");
   b();
+  y();
 }
 
 void b(void) {
