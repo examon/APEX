@@ -1,6 +1,6 @@
 /* Tomas Meszaros
  *
- * Testpass
+ * APEX
  */
 
 // Some relevant docs:
@@ -34,23 +34,22 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "testpass_config.h"
+#include "apex_config.h"
 
 using namespace llvm;
 
 namespace {
-struct TestPass : public ModulePass {
+struct APEXPass : public ModulePass {
   static char ID;
-  TestPass() : ModulePass(ID) {}
+  APEXPass() : ModulePass(ID) {}
   bool runOnModule(Module &M) override;
 };
 }
 
 /* Registering our own pass, so it can be ran via opt.
  */
-char TestPass::ID = 0;
-static RegisterPass<TestPass> X("testpass",
-                                "Just a test pass. Work in progress.",
+char APEXPass::ID = 0;
+static RegisterPass<APEXPass> X("apex", "Just a test pass. Work in progress.",
                                 false /* Only looks at CFG */,
                                 false /* Analysis Pass */);
 
@@ -312,7 +311,7 @@ int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Running on each module.
-bool TestPass::runOnModule(Module &M) {
+bool APEXPass::runOnModule(Module &M) {
   debugDumpModule(M);
 
   // Create callgraph from module.

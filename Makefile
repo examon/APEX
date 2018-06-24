@@ -1,6 +1,10 @@
+run:
+	cd apex; \
+	./build_and_run.sh
+
 clean:
-	rm -rf testpass/build
-	rm -rf testpass/cmake-build-debug
+	rm -rf apex/build
+	rm -rf apex/cmake-build-debug
 	rm -rf build
 	rm -rf cmake-build-debug
 	@find . -name '__pycache__' -exec rm -fr {} +
