@@ -29,7 +29,7 @@ according to the instructions above).
 After running `make run`, APEX:
 - uses llvm and translates `test.c` into IR (intermediate representation)
 - creates call graph from the IR
-- finds active code path from source (`main`) to target (`y`)
+- finds some active code path from source (`main`) to target (`y`)
 - removes functions that are not on the active code path
 
 To run extracted active code path, type `lli apex/build/test_after_apex.bc`
