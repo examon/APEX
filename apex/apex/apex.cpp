@@ -7,29 +7,8 @@
 // What is this:
 // This file implements APEXPass, that is llvm pass that can be run via opt.
 
-// Some relevant docs:
-// https://llvm.org/doxygen/classllvm_1_1CallGraphWrapperPass.html
-// https://llvm.org/doxygen/CallGraph_8h_source.html
-// https://llvm.org/doxygen/classllvm_1_1CallGraphNode.html
 
-// BOTH SEGFAULTING
-// https://github.com/llvm-mirror/llvm/blob/master/tools/opt/PrintSCC.cpp
-// https://github.com/mr-ma/llvm-pass-callgraph/blob/master/hello.c
 
-// Remove function, replace all uses:
-// https://groups.google.com/forum/#!topic/llvm-dev/ovvfIe_zU3Y
-
-// Remove function from module
-// https://lists.llvm.org/pipermail/llvm-dev/2012-April/049154.html
-
-// Discussion about call graphs
-// https://groups.google.com/forum/#!topic/llvm-dev/peP9L8rjFvA
-
-// TODO: setup input e.g. target function to reach
-// TODO: check if target function is reachable
-// TODO: do not remove functions that target function is calling
-// TODO: move declarations into header
-// TODO: add sanity check for user input
 
 #include <string>
 #include <vector>

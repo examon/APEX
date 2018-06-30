@@ -7,7 +7,7 @@
 // What is this:
 // Config for APEX, currently holding also user input (TODO: move user input outside).
 
-bool _DEBUG = false;
+bool _DEBUG = true;
 bool _LOG = true;
 
 // This is user input.
