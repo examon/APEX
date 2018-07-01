@@ -32,7 +32,7 @@ After running `make run`, APEX:
 - finds some active code path from source (`main`) to target (`y`)
 - removes functions that are not on the active code path
 
-To run extracted active code path, type `lli apex/build/test_after_apex.bc`
+To run extracted active code path, type `lli apex/build/bytecode_from_input_basic_opts_and_apex.bc`
 (see [build_and_run.sh](apex/build_and_run.sh) script for more info).
 
 Image on the left represents call graph before we run APEX, while image on the
