@@ -5,10 +5,8 @@
  */
 
 // What is this:
-// This file implements APEXPass, that is llvm pass that can be run via opt.
-
-
-
+// This file implements APEX as LLVM Pass (APEXPass). See build_and_run.sh for
+// information about how to run APEXPass.
 
 #include <string>
 #include <vector>

@@ -5,11 +5,11 @@
  */
 
 // What is this:
-// Config for APEX, currently holding also user input (TODO: move user input outside).
+// Config for APEX, currently holding also user input
 
 bool _DEBUG = true;
 bool _LOG = true;
 
 // This is user input.
 std::string _SOURCE = "main";
-std::string _TARGET = "y";
+std::string _TARGET = "x";

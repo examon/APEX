@@ -1,3 +1,0 @@
-/mnt/Documents/work/university/muni/msc/thesis/apex/cmake-build-debug/CMakeFiles/edit_cache.dir
-/mnt/Documents/work/university/muni/msc/thesis/apex/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/mnt/Documents/work/university/muni/msc/thesis/apex/cmake-build-debug/CMakeFiles/llvm_stuff.dir

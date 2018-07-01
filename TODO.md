@@ -1,10 +1,14 @@
-### TODOs
+## TODOs
 
-- find multiple paths from source to target, not only one
+
+#### IN PROGRESS
+
 - add support for non-void functions
 
+#### TODO
 
-- setup input e.g. target function to reach
+- find multiple paths from source to target, not only one
+- setup input e.g. target function to reach & input source file
 - check if target function is reachable before finding path
 - do not remove functions that target function is calling
 - move declarations into header
