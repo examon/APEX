@@ -54,13 +54,13 @@ void debugPrint(const std::string &message) {
 
 void logPrint(const std::string &message) {
   if (_LOG) {
-    errs() << "+++++++++ logPrint(): " + message + "\n";
+    errs() << "+ " + message + "\n";
   }
 }
 
 // Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-// Takes pointer to function, iterates over instruction calling this function
+// Takes pointer to function, iterates over instructions calling this function
 // and removes these instructions.
 //
 // Returns: number of removed instructions, -1 in case of error
@@ -71,8 +71,7 @@ int removeFunctionCalls(const Function *F) {
     return -1;
   }
 
-  logPrint("Proceeding to remove call instructions to: " +
-           F->getGlobalIdentifier());
+  logPrint("- removing function calls to: " + F->getGlobalIdentifier());
   for (const Use &use : F->uses()) {
     if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
       std::string message = "- in: ";
@@ -108,18 +107,21 @@ int removeFunction(Function *F) {
   if (nullptr == F) {
     return -1;
   }
+  std::string fcn_id = F->getGlobalIdentifier();
 
-  logPrint("Proceeding to remove function: " + F->getGlobalIdentifier());
+  logPrint("======= [to remove function: " + fcn_id + "] =======");
 
   if (removeFunctionCalls(F) < 0) {
     return -1;
   }
 
-  std::string message = "- removing function: ";
+  std::string message = "removing function: ";
   message += F->getGlobalIdentifier();
   logPrint(message);
 
   F->eraseFromParent();
+
+  logPrint("======= [to remove function: " + fcn_id + "] =======\n");
   return 0;
 }
 
@@ -221,6 +223,7 @@ int createCallGraph(
 void printCallGraph(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph) {
+  logPrint("======= [callgraph] =======");
   for (auto &caller_callees : callgraph) {
     std::string caller = caller_callees.first->getGlobalIdentifier();
     std::string callees = " -> ";
@@ -231,8 +234,9 @@ void printCallGraph(
       callees += callee->getGlobalIdentifier();
       callees += ", ";
     }
-    logPrint("callgraph: " + caller + callees);
+    logPrint(caller + callees);
   }
+  logPrint("======= [callgraph] =======\n");
 }
 
 // Uses BFS to find path in @callgraph from @start to @end (both are global
@@ -289,6 +293,15 @@ int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
   return -1;
 }
 
+// Prints @path
+void printPath(const std::vector<Function *> &path) {
+  logPrint("======= [source->target path] =======");
+  for (auto &node : path) {
+    logPrint(node->getGlobalIdentifier());
+  }
+  logPrint("======= [source->target path] =======\n");
+}
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Running on each module.
@@ -303,13 +316,17 @@ bool APEXPass::runOnModule(Module &M) {
   // Find path from @source to @target in the @callgraph.
   std::vector<Function *> path;
   findPath(callgraph, _SOURCE, _TARGET, path);
-  for (auto &node : path) {
-    debugPrint(node->getGlobalIdentifier());
-  }
+  printPath(path);
 
+  // Calculate dependencies on the @path.
+
+
+  /*
+  // TODO: Postpone this until the dependencies are calculated.
   // Remove functions that do not affect calculated execution @path.
   std::vector<Function *> functions_to_be_removed;
-  { // Collect functions from module that will be removed.
+  { // Collect functions from module that will be removed
+    // (functions that are not in the @path vector).
     for (auto &module_fcn : M.getFunctionList()) {
       bool module_fcn_to_be_removed = true;
       for (Function *path_fcn : path) {
@@ -326,9 +343,14 @@ bool APEXPass::runOnModule(Module &M) {
   { // Remove collected functions.
     for (auto &fcn : functions_to_be_removed) {
       debugPrint(fcn->getGlobalIdentifier());
-      removeFunction(fcn);
+      if (removeFunction(fcn) < 0) {
+        logPrint("[ERROR] Aborting. Was about to remove non-void returning "
+                 "function!");
+        return true;
+      }
     }
   }
+  */
 
   debugDumpModule(M);
   return true;

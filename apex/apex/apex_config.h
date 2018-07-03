@@ -7,9 +7,9 @@
 // What is this:
 // Config for APEX, currently holding also user input
 
-bool _DEBUG = true;
+bool _DEBUG = false;
 bool _LOG = true;
 
 // This is user input.
 std::string _SOURCE = "main";
-std::string _TARGET = "x";
+std::string _TARGET = "b";
