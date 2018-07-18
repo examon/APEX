@@ -13,16 +13,16 @@ In order to run APEX, you need to have llvm installed:
 
 ### How to run APEX
 
-Input C source code is located in the [test.c](apex/c-code/test.c). <br>
+Input C source code is located in the [test.c](c-code/test.c). <br>
 Source and target functions defining start and end of the active code path can
-be specified in the [apex_config.h](apex/apex/apex_config.h).
+be specified in the [apex_config.h](apex/apex_config.h).
 
 After providing input, run `make run`. Check `apex/build` for output.
 
 
 ### How it works
 
-Let's say we have C source file [test.c](apex/c-code/test.c) and we want to
+Let's say we have C source file [test.c](c-code/test.c) and we want to
 extract active path between functions `main` and `y` (we specify these inputs
 according to the instructions above).
 
@@ -33,7 +33,7 @@ After running `make run`, APEX:
 - removes functions that are not on the active code path
 
 To run extracted active code path, type `lli apex/build/bytecode_from_input_basic_opts_and_apex.bc`
-(see [build_and_run.sh](apex/build_and_run.sh) script for more info).
+(see [build_and_run.sh](build_and_run.sh) script for more info).
 
 Image on the left represents call graph before we run APEX, while image on the
 right shows how the call graph looks after APEX transformed IR. <br>
