@@ -1,8 +1,14 @@
-cmake_minimum_required(VERSION 3.1)
+add_library(APEXPass MODULE apex.cpp)
 
-find_package(LLVM REQUIRED CONFIG)
-add_definitions(${LLVM_DEFINITIONS})
-include_directories(${LLVM_INCLUDE_DIRS})
-link_directories(${LLVM_LIBRARY_DIRS})
+OPTION(LLVM_DG "Support for LLVM Dependency graph" ON)
+OPTION(ENABLE_CFG "Add support for CFG edges to the graph" ON)
 
-add_subdirectory(apex)  # Use your pass name here.
+target_compile_features(APEXPass PRIVATE cxx_range_for cxx_auto_type)
+set_target_properties(APEXPass PROPERTIES COMPILE_FLAGS "-fno-rtti")
+
+# This needs to be defined for dg
+add_definitions(-DENABLE_CFG)
+add_definitions(-DHAVE_LLVM)
+
+# Getting dg_libs from top level CMakeLists.txt
+target_link_libraries(APEXPass ${dg_libs})

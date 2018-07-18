@@ -1,0 +1,4 @@
+[submodule "dg"]
+	path = dg
+	url = https://github.com/mchalupa/dg
+	ignore = untracked

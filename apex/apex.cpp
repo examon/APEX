@@ -11,11 +11,18 @@
 #include <string>
 #include <vector>
 
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include <llvm/Analysis/CallGraph.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
+//#include <llvm-dg/Node.h>
+//#include <llvm-dg/DependenceGraph.h>
+#include "llvm/LLVMDependenceGraph.h"
+
+#include "apex.h"
 #include "apex_config.h"
+
+//#include "llvm-dg/llvm/LLVMDependenceGraph.h"
 
 using namespace llvm;
 
@@ -34,37 +41,42 @@ static RegisterPass<APEXPass> X("apex", "Just a test pass. Work in progress.",
                                 false /* Only looks at CFG */,
                                 false /* Analysis Pass */);
 
-// Debug utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void debugDumpModule(const Module &M) {
-  if (_DEBUG) {
-    errs() << ">>>>>>>>> Module dump() BEGINS:\n\n";
-    M.dump();
-    errs() << "<<<<<<<<< Module dump() ENDS!\n";
-  }
-}
-
-void debugPrint(const std::string &message) {
-  if (_DEBUG) {
-    errs() << ">>>>>>>>> debugPrint(): " + message + "\n";
-  }
-}
-
 // Log utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void logPrint(const std::string &message) {
   if (_LOG) {
-    errs() << "+ " + message + "\n";
+    errs() << message + "\n";
   }
 }
 
+void logPrintFlat(const std::string &message) {
+  if (_LOG) {
+    errs() << message;
+  }
+}
+
+void logDumpModule(const Module &M) {
+  std::string module_name = M.getModuleIdentifier();
+  logPrint("======= [module: " + module_name + " dump] =======");
+  M.dump();
+  logPrint("======= [module: " + module_name + " dump] =======\n");
+}
+
 // Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Prints contents of the vector of @functions.
+void functionVectorFlatPrint(const std::vector<Function *> &functions) {
+  for (const Function *function : functions) {
+    logPrintFlat(function->getGlobalIdentifier() + ", ");
+  }
+  logPrint("");
+}
 
 // Takes pointer to function, iterates over instructions calling this function
 // and removes these instructions.
 //
 // Returns: number of removed instructions, -1 in case of error
-int removeFunctionCalls(const Function *F) {
+int functionRemoveCalls(const Function *F) {
   int calls_removed = 0;
 
   if (nullptr == F) {
@@ -103,7 +115,7 @@ int removeFunctionCalls(const Function *F) {
 // removes function itself.
 //
 // Returns: 0 if successful or -1 in case of error.
-int removeFunction(Function *F) {
+int functionRemove(Function *F) {
   if (nullptr == F) {
     return -1;
   }
@@ -111,7 +123,7 @@ int removeFunction(Function *F) {
 
   logPrint("======= [to remove function: " + fcn_id + "] =======");
 
-  if (removeFunctionCalls(F) < 0) {
+  if (functionRemoveCalls(F) < 0) {
     return -1;
   }
 
@@ -129,7 +141,7 @@ int removeFunction(Function *F) {
 // Collects functions that call function @F into vector @callers.
 //
 // Returns: 0 in case of success, -1 if error.
-int getFunctionCallers(const Function *F, std::vector<Function *> &callers) {
+int functionGetCallers(const Function *F, std::vector<Function *> &callers) {
   if (nullptr == F) {
     return -1;
   }
@@ -152,7 +164,7 @@ int getFunctionCallers(const Function *F, std::vector<Function *> &callers) {
 // Collects functions that are called by function @F into vector @callees.
 //
 // Returns: 0 in case of success, -1 if error.
-int getFunctionCallees(const Function *F, std::vector<Function *> &callees) {
+int functionGetCallees(const Function *F, std::vector<Function *> &callees) {
   if (nullptr == F) {
     return -1;
   }
@@ -199,7 +211,7 @@ int createCallGraph(
 
       // Find call functions that are called by the node.
       std::vector<Function *> node_callees;
-      if (getFunctionCallees(node, node_callees) < 0) {
+      if (functionGetCallees(node, node_callees) < 0) {
         logPrint("failed to collect target callees [ERROR]");
         return -1;
       }
@@ -304,11 +316,19 @@ void printPath(const std::vector<Function *> &path) {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+using namespace dg;
 // Running on each module.
 bool APEXPass::runOnModule(Module &M) {
-  debugDumpModule(M);
+  logDumpModule(M);
 
-  // Create callgraph from module.
+  LLVMDependenceGraph d;
+  Function *main = M.getFunction("main");
+  d.build(&M, main);
+
+  // TODO: do dependence graph analysis here
+  return true;
+
+  // Create call graph from module.
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
   createCallGraph(M, _SOURCE, callgraph);
   printCallGraph(callgraph);
@@ -318,12 +338,41 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path);
 
-  // Calculate dependencies on the @path.
+  // Recursively add all called functions to the @path.
+  std::vector<Function *> functions_to_process = path;
+  logPrint("======= [adding dependencies to @path =======");
+  while (false == functions_to_process.empty()) {
+    logPrintFlat("current path: ");
+    functionVectorFlatPrint(path);
+    logPrintFlat("functions to process: ");
+    functionVectorFlatPrint(functions_to_process);
 
+    const Function *current = functions_to_process.back();
+    functions_to_process.pop_back();
+    logPrint("- currently examining: " + current->getGlobalIdentifier());
 
-  /*
-  // TODO: Postpone this until the dependencies are calculated.
+    std::vector<Function *> current_callees;
+    functionGetCallees(current, current_callees);
+
+    for (auto &calee : current_callees) {
+      bool calee_to_be_processed = true;
+      for (auto &path_fcn : path) {
+        if (calee->getGlobalIdentifier() == path_fcn->getGlobalIdentifier()) {
+          calee_to_be_processed = false;
+        }
+      }
+      if (true == calee_to_be_processed) {
+        functions_to_process.push_back(calee);
+        path.push_back(calee);
+        logPrint("  - adding: " + calee->getGlobalIdentifier());
+      }
+    }
+    logPrint("");
+  }
+  logPrint("======= [adding dependencies to @path =======\n");
+
   // Remove functions that do not affect calculated execution @path.
+  /*
   std::vector<Function *> functions_to_be_removed;
   { // Collect functions from module that will be removed
     // (functions that are not in the @path vector).
@@ -342,8 +391,7 @@ bool APEXPass::runOnModule(Module &M) {
   }
   { // Remove collected functions.
     for (auto &fcn : functions_to_be_removed) {
-      debugPrint(fcn->getGlobalIdentifier());
-      if (removeFunction(fcn) < 0) {
+      if (functionRemove(fcn) < 0) {
         logPrint("[ERROR] Aborting. Was about to remove non-void returning "
                  "function!");
         return true;
@@ -352,6 +400,6 @@ bool APEXPass::runOnModule(Module &M) {
   }
   */
 
-  debugDumpModule(M);
+  logDumpModule(M);
   return true;
 }

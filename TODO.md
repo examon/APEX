@@ -3,10 +3,11 @@
 
 #### IN PROGRESS
 
-- add support for non-void functions
+- use dg to analyse inter-function dependencies
 
 #### TODO
 
+- add support for non-void functions
 - find multiple paths from source to target, not only one
 - setup input e.g. target function to reach & input source file
 - check if target function is reachable before finding path
