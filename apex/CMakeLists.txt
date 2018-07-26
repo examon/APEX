@@ -12,3 +12,10 @@ add_definitions(-DHAVE_LLVM)
 
 # Getting dg_libs from top level CMakeLists.txt
 target_link_libraries(APEXPass ${dg_libs})
+
+target_link_libraries(APEXPass
+        PRIVATE ${llvm_support}
+        PRIVATE ${llvm_analysis}
+        PRIVATE ${llvm_irreader}
+        PRIVATE ${llvm_bitwriter}
+        PRIVATE ${llvm_core})

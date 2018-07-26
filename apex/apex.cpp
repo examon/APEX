@@ -15,15 +15,16 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-//#include <llvm-dg/Node.h>
-//#include <llvm-dg/DependenceGraph.h>
+// We need this for dg integration.
+#include "analysis/PointsTo/PointsToFlowInsensitive.h"
 #include "llvm/LLVMDependenceGraph.h"
+#include "llvm/analysis/DefUse.h"
 
 #include "apex.h"
 #include "apex_config.h"
 
-//#include "llvm-dg/llvm/LLVMDependenceGraph.h"
 
+using namespace dg;
 using namespace llvm;
 
 namespace {
@@ -59,7 +60,7 @@ void logDumpModule(const Module &M) {
   std::string module_name = M.getModuleIdentifier();
   logPrint("======= [module: " + module_name + " dump] =======");
   M.dump();
-  logPrint("======= [module: " + module_name + " dump] =======\n");
+  logPrint("======= [END module: " + module_name + " dump] =======\n");
 }
 
 // Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -316,16 +317,60 @@ void printPath(const std::vector<Function *> &path) {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-using namespace dg;
 // Running on each module.
 bool APEXPass::runOnModule(Module &M) {
   logDumpModule(M);
 
-  LLVMDependenceGraph d;
-  Function *main = M.getFunction("main");
-  d.build(&M, main);
+  for (auto &current_function : M) {
+    std::string current_function_name = current_function.getName();
+    logPrint("======= current function: " + current_function_name);
 
-  // TODO: do dependence graph analysis here
+    LLVMDependenceGraph dg;
+    { // Building control & data dependencies in for dg.
+      LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
+      dg.build(&M, pta, &current_function);
+      analysis::rd::LLVMReachingDefinitions rda(&M, pta);
+      // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
+      // ^^^^ Note: This segfaults, need to use SemisparseRda.
+      //            What is the difference anyway?
+      rda.run<analysis::rd::SemisparseRda>();
+      LLVMDefUseAnalysis dua(&dg, &rda, pta);
+      dua.run();
+      dg.computeControlDependencies(CD_ALG::CLASSIC);
+    }
+
+    // TODO: Iterate over global nodes as well, e.g. GLOB FUNC x
+
+    // Iterates over blocks in dependence graph
+    for (auto &block : dg) {
+      block.first->dump();
+      LLVMNode *node = block.second;
+
+      logPrint("has subraphs: " + std::to_string(node->hasSubgraphs()));
+      logPrint("   num CD: " +
+               std::to_string(node->getControlDependenciesNum()));
+      logPrint("num revCD: " +
+               std::to_string(node->getRevControlDependenciesNum()));
+      logPrint("   num DD: " + std::to_string(node->getDataDependenciesNum()));
+      logPrint("num revDD: " +
+               std::to_string(node->getRevDataDependenciesNum()));
+
+      for (auto ii = node->data_begin(), ee = node->data_end(); ii != ee;
+           ++ii) {
+        logPrint(" >>>> some data dependency!");
+      }
+      for (auto ii = node->control_begin(), ee = node->control_end(); ii != ee;
+           ++ii) {
+
+        logPrint(" >>>> some control dependency!");
+      }
+      logPrint("");
+    }
+    logPrint("======= END current function: " + current_function_name);
+    logPrint("");
+  }
+
+  // TODO: When you have computed dependencies continue with removing functions.
   return true;
 
   // Create call graph from module.
