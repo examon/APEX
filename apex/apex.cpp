@@ -23,7 +23,6 @@
 #include "apex.h"
 #include "apex_config.h"
 
-
 using namespace dg;
 using namespace llvm;
 
@@ -44,17 +43,9 @@ static RegisterPass<APEXPass> X("apex", "Just a test pass. Work in progress.",
 
 // Log utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void logPrint(const std::string &message) {
-  if (_LOG) {
-    errs() << message + "\n";
-  }
-}
+void logPrint(const std::string &message) { errs() << message + "\n"; }
 
-void logPrintFlat(const std::string &message) {
-  if (_LOG) {
-    errs() << message;
-  }
-}
+void logPrintFlat(const std::string &message) { errs() << message; }
 
 void logDumpModule(const Module &M) {
   std::string module_name = M.getModuleIdentifier();
@@ -315,75 +306,151 @@ void printPath(const std::vector<Function *> &path) {
   logPrint("======= [source->target path] =======\n");
 }
 
+// Prints control/reverse_control/data/reverse_data dependencies of the node
+// (calculated by the LLVMDependencyGraph @dg)
+void dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node) {
+  logPrint("--- [NODE]");
+  errs() << "node address: " << node_value << "\n";
+  logPrintFlat("  node value: ");
+  node_value->dump();
+  logPrint("");
+
+  logPrint("----  subraphs: " + std::to_string(node->hasSubgraphs()));
+
+  { // Control dependencies info print.
+    logPrint("----    num CD: " +
+             std::to_string(node->getControlDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->control_begin(), e = node->control_end(); i != e;
+           ++i) {
+        logPrint("");
+        errs() << (*i) << "\n";   // Prints node address that CD points to.
+        (*i)->getValue()->dump(); // Dumps contents of the node pointed by CD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Reverse control dependencies info print.
+    logPrint("---- num revCD: " +
+             std::to_string(node->getRevControlDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->rev_control_begin(), e = node->rev_control_end();
+           i != e; ++i) {
+        logPrint("");
+        errs() << (*i) << "\n"; // Prints node address that rev CD points to.
+        (*i)->getValue()
+            ->dump(); // Dumps contents of the node pointed by rev CD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Data dependencies info print.
+    logPrint("----    num DD: " +
+             std::to_string(node->getDataDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
+        logPrint("");
+        errs() << (*i) << "\n";   // Prints node address that DD points to.
+        (*i)->getValue()->dump(); // Dumps contents of the node pointed by DD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Reverse data dapendencies info print.
+    logPrint("---- num revDD: " +
+             std::to_string(node->getRevDataDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
+           ++i) {
+        logPrint("");
+        errs() << (*i) << "\n"; // Prints node address that rev DD points to.
+        (*i)->getValue()
+            ->dump(); // Dumps contents of the node pointed by rev DD.
+      }
+      logPrint("");
+    }
+  }
+
+  logPrint("");
+}
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Running on each module.
 bool APEXPass::runOnModule(Module &M) {
   logDumpModule(M);
 
-  for (auto &current_function : M) {
-    std::string current_function_name = current_function.getName();
-    logPrint("======= current function: " + current_function_name);
-
-    LLVMDependenceGraph dg;
-    { // Building control & data dependencies in for dg.
-      LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
-      dg.build(&M, pta, &current_function);
-      analysis::rd::LLVMReachingDefinitions rda(&M, pta);
-      // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
-      // ^^^^ Note: This segfaults, need to use SemisparseRda.
-      //            What is the difference anyway?
-      rda.run<analysis::rd::SemisparseRda>();
-      LLVMDefUseAnalysis dua(&dg, &rda, pta);
-      dua.run();
-      dg.computeControlDependencies(CD_ALG::CLASSIC);
-    }
-
-    // TODO: Iterate over global nodes as well, e.g. GLOB FUNC x
-
-    // Iterates over blocks in dependence graph
-    for (auto &block : dg) {
-      block.first->dump();
-      LLVMNode *node = block.second;
-
-      logPrint("has subraphs: " + std::to_string(node->hasSubgraphs()));
-      logPrint("   num CD: " +
-               std::to_string(node->getControlDependenciesNum()));
-      logPrint("num revCD: " +
-               std::to_string(node->getRevControlDependenciesNum()));
-      logPrint("   num DD: " + std::to_string(node->getDataDependenciesNum()));
-      logPrint("num revDD: " +
-               std::to_string(node->getRevDataDependenciesNum()));
-
-      for (auto ii = node->data_begin(), ee = node->data_end(); ii != ee;
-           ++ii) {
-        logPrint(" >>>> some data dependency!");
-      }
-      for (auto ii = node->control_begin(), ee = node->control_end(); ii != ee;
-           ++ii) {
-
-        logPrint(" >>>> some control dependency!");
-      }
-      logPrint("");
-    }
-    logPrint("======= END current function: " + current_function_name);
-    logPrint("");
+  LLVMDependenceGraph dg;
+  { // Building control & data dependencies in for dg.
+    logPrint("======= Building Dependence Graph");
+    LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
+    //      dg.build(&M, pta, &current_function);
+    dg.build(&M, pta);
+    analysis::rd::LLVMReachingDefinitions rda(&M, pta);
+    // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
+    // ^^^^ Note: This segfaults, need to use SemisparseRda.
+    //            What is the difference anyway?
+    rda.run<analysis::rd::SemisparseRda>();
+    LLVMDefUseAnalysis dua(&dg, &rda, pta);
+    dua.run();
+    dg.computeControlDependencies(CD_ALG::CLASSIC);
+    logPrint("- done");
   }
 
-  // TODO: When you have computed dependencies continue with removing functions.
-  return true;
+  { // Extracting data from dg.
+    const std::map<llvm::Value *, LLVMDependenceGraph *> &CF =
+        getConstructedFunctions();
 
+    logPrint("====== Getting Constructed Functions");
+    for (auto &function_dg : CF) {
+      std::string function_name = function_dg.first->getName();
+      if (function_name != "main") {
+        continue;
+      }
+      logPrint("- [FUNCTION]: " + function_name);
+
+      for (auto &value_block : function_dg.second->getBlocks()) {
+        logPrint("-- [BLOCK]:");
+        value_block.first->dump();
+
+        for (auto &llvm_node : value_block.second->getNodes()) {
+          dgPrintBlockNodeInfo(llvm_node->getValue(), llvm_node);
+        }
+      }
+    }
+  }
+
+  // TODO: Iterate over global nodes as well, e.g. GLOB FUNC x
+  // Iterates over blocks in dependence graph
+  //    for (auto &global : *dg.getGlobalNodes()) {
+  //      dgPrintBlockInfo(global.first, global.second);
+  //    }
+
+  //    for (auto &block : dg) {
+  //      dgPrintBlockInfo(block.first, block.second);
+  //    }
+  //  }
+
+  // TODO: When you have computed dependencies continue with removing functions.
   // Create call graph from module.
+  /*
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
   createCallGraph(M, _SOURCE, callgraph);
   printCallGraph(callgraph);
+  */
 
   // Find path from @source to @target in the @callgraph.
+  /*
   std::vector<Function *> path;
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path);
+  */
 
   // Recursively add all called functions to the @path.
+  /*
   std::vector<Function *> functions_to_process = path;
   logPrint("======= [adding dependencies to @path =======");
   while (false == functions_to_process.empty()) {
@@ -415,6 +482,7 @@ bool APEXPass::runOnModule(Module &M) {
     logPrint("");
   }
   logPrint("======= [adding dependencies to @path =======\n");
+  */
 
   // Remove functions that do not affect calculated execution @path.
   /*
@@ -445,6 +513,5 @@ bool APEXPass::runOnModule(Module &M) {
   }
   */
 
-  logDumpModule(M);
   return true;
 }
