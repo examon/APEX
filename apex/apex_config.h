@@ -7,7 +7,7 @@
 // What is this:
 // Config for APEX, currently holding also user input
 
-bool _LOG_VERBOSE = false;
+bool _LOG_VERBOSE = true;
 
 // This is user input.
 std::string _SOURCE = "main";

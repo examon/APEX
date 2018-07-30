@@ -8,397 +8,15 @@
 // This file implements APEX as LLVM Pass (APEXPass). See build_and_run.sh for
 // information about how to run APEXPass.
 
-#include <string>
-#include <vector>
-
-#include <llvm/Analysis/CallGraph.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
-
-// We need this for dg integration.
-#include "analysis/PointsTo/PointsToFlowInsensitive.h"
-#include "llvm/LLVMDependenceGraph.h"
-#include "llvm/analysis/DefUse.h"
-
 #include "apex.h"
 #include "apex_config.h"
-
-using namespace dg;
-using namespace llvm;
-
-namespace {
-struct APEXPass : public ModulePass {
-  static char ID;
-  APEXPass() : ModulePass(ID) {}
-  bool runOnModule(Module &M) override;
-};
-}
-
-/* Registering our own pass, so it can be ran via opt.
- */
-char APEXPass::ID = 0;
-static RegisterPass<APEXPass> X("apex", "Just a test pass. Work in progress.",
-                                false /* Only looks at CFG */,
-                                false /* Analysis Pass */);
-
-// Log utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-void logPrint(const std::string &message) { errs() << message + "\n"; }
-
-void logPrintFlat(const std::string &message) { errs() << message; }
-
-void logDumpModule(const Module &M) {
-  std::string module_name = M.getModuleIdentifier();
-  logPrint("======= [module: " + module_name + " dump] =======");
-  M.dump();
-  logPrint("======= [END module: " + module_name + " dump] =======\n");
-}
-
-// Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Prints contents of the vector of @functions.
-void functionVectorFlatPrint(const std::vector<Function *> &functions) {
-  for (const Function *function : functions) {
-    logPrintFlat(function->getGlobalIdentifier() + ", ");
-  }
-  logPrint("");
-}
-
-// Takes pointer to function, iterates over instructions calling this function
-// and removes these instructions.
-//
-// Returns: number of removed instructions, -1 in case of error
-int functionRemoveCalls(const Function *F) {
-  int calls_removed = 0;
-
-  if (nullptr == F) {
-    return -1;
-  }
-
-  logPrint("- removing function calls to: " + F->getGlobalIdentifier());
-  for (const Use &use : F->uses()) {
-    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      std::string message = "- in: ";
-      message += UserInst->getFunction()->getName();
-      message += "; removing call instruction to: ";
-      message += F->getName();
-
-      if (!UserInst->getType()->isVoidTy()) {
-        // NOTE: Currently only removing void returning calls.
-        // TODO: handle non-void returning function calls in the future
-        message += "; removing non-void returning call is not yet supported! ";
-        message += "[ABORT]";
-        logPrint(message);
-        return -1;
-      }
-
-      logPrint(message);
-
-      UserInst->eraseFromParent();
-      calls_removed++;
-    } else {
-      return -1;
-    }
-  }
-  return calls_removed;
-}
-
-// Takes pointer to a function, removes all calls to this function and then
-// removes function itself.
-//
-// Returns: 0 if successful or -1 in case of error.
-int functionRemove(Function *F) {
-  if (nullptr == F) {
-    return -1;
-  }
-  std::string fcn_id = F->getGlobalIdentifier();
-
-  logPrint("======= [to remove function: " + fcn_id + "] =======");
-
-  if (functionRemoveCalls(F) < 0) {
-    return -1;
-  }
-
-  std::string message = "removing function: ";
-  message += F->getGlobalIdentifier();
-  logPrint(message);
-
-  F->eraseFromParent();
-
-  logPrint("======= [to remove function: " + fcn_id + "] =======\n");
-  return 0;
-}
-
-// TODO: Not used ATM.
-// Collects functions that call function @F into vector @callers.
-//
-// Returns: 0 in case of success, -1 if error.
-int functionGetCallers(const Function *F, std::vector<Function *> &callers) {
-  if (nullptr == F) {
-    return -1;
-  }
-
-  for (const Use &use : F->uses()) {
-    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      if (!UserInst->getType()->isVoidTy()) {
-        // Currently only removing void returning calls.
-        // TODO: handle non-void returning function calls in the future
-        return -1;
-      }
-      callers.push_back(UserInst->getFunction());
-    } else {
-      return -1;
-    }
-  }
-  return 0;
-}
-
-// Collects functions that are called by function @F into vector @callees.
-//
-// Returns: 0 in case of success, -1 if error.
-int functionGetCallees(const Function *F, std::vector<Function *> &callees) {
-  if (nullptr == F) {
-    return -1;
-  }
-
-  for (auto &BB : *F) {
-    for (auto &I : BB) {
-      if (auto callinst = dyn_cast<CallInst>(&I)) {
-        Function *called_fcn = callinst->getCalledFunction();
-        if (nullptr == called_fcn) {
-          logPrint("called_fcn is nullptr [ERROR]");
-          return -1;
-        }
-        callees.push_back(called_fcn);
-      }
-    }
-  }
-  return 0;
-}
-
-// Graph utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Creates callgraph from module @M, starting from the function with global id
-// specified in @root. Callgraph is saved in vector @callgraph in the pairs
-// of the following format: <caller function, vector of called functions>.
-//
-// Returns: 0 in case of success, -1 if error.
-int createCallGraph(
-    const Module &M, const std::string &root,
-    std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
-  // Collect root function.
-  Function *root_fcn = M.getFunction(root);
-  if (nullptr == root_fcn) {
-    logPrint("root function should not be nullptr after collecting [ERROR]");
-    return -1;
-  }
-
-  { // Construct call graph.
-    std::vector<Function *> queue;
-    queue.push_back(root_fcn);
-
-    while (false == queue.empty()) {
-      Function *node = queue.back();
-      queue.pop_back();
-
-      // Find call functions that are called by the node.
-      std::vector<Function *> node_callees;
-      if (functionGetCallees(node, node_callees) < 0) {
-        logPrint("failed to collect target callees [ERROR]");
-        return -1;
-      }
-
-      // Make caller->callees pair and save it.
-      std::pair<Function *, std::vector<Function *>> caller_callees;
-      caller_callees.first = node;
-      caller_callees.second = node_callees;
-      callgraph.push_back(caller_callees);
-
-      // Put callees to queue, they will be examined next.
-      for (Function *callee : node_callees) {
-        queue.push_back(callee);
-      }
-    }
-  }
-  return 0;
-}
-
-// Prints @callgraph.
-void printCallGraph(
-    const std::vector<std::pair<Function *, std::vector<Function *>>>
-        &callgraph) {
-  logPrint("======= [callgraph] =======");
-  for (auto &caller_callees : callgraph) {
-    std::string caller = caller_callees.first->getGlobalIdentifier();
-    std::string callees = " -> ";
-    if (caller_callees.second.empty()) {
-      callees += "[External/Nothing]";
-    }
-    for (auto &callee : caller_callees.second) {
-      callees += callee->getGlobalIdentifier();
-      callees += ", ";
-    }
-    logPrint(caller + callees);
-  }
-  logPrint("======= [callgraph] =======\n");
-}
-
-// Uses BFS to find path in @callgraph from @start to @end (both are global
-// Function IDs). Result is stored in the @final_path.
-//
-// Returns: 0 in success, -1 if error.
-int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
-                 &callgraph,
-             const std::string &start, const std::string &end,
-             std::vector<Function *> &final_path) {
-  { // Computes path, stores
-    std::vector<std::vector<std::string>> queue;
-    std::vector<std::string> v_start;
-    v_start.push_back(start);
-    queue.push_back(v_start);
-
-    while (false == queue.empty()) {
-      std::vector<std::string> path = queue.back();
-      queue.pop_back();
-
-      std::string node = path.back();
-
-      // Found the end. Store function pointers to @final_path.
-      if (node == end) {
-        for (const std::string node_id : path) {
-          for (auto &caller_callees : callgraph) {
-            Function *caller = caller_callees.first;
-            if (caller->getGlobalIdentifier() == node_id) {
-              final_path.push_back(caller);
-            }
-          }
-        }
-        return 0;
-      }
-
-      // Find adjacent/called nodes of @node and save them to @callees.
-      std::vector<Function *> callees;
-      for (auto &caller_callees : callgraph) {
-        if (node == caller_callees.first->getGlobalIdentifier()) {
-          callees = caller_callees.second;
-        }
-      }
-
-      // Iterate over adjacent/called nodes and add them to the path.
-      for (Function *callee : callees) {
-        std::string callee_id = callee->getGlobalIdentifier();
-        std::vector<std::string> new_path = path;
-        new_path.push_back(callee_id);
-        queue.push_back(new_path);
-      }
-    }
-  }
-
-  return -1;
-}
-
-// Prints @path
-void printPath(const std::vector<Function *> &path) {
-  logPrint("======= [source->target path] =======");
-  for (auto &node : path) {
-    logPrint(node->getGlobalIdentifier());
-  }
-  logPrint("======= [source->target path] =======\n");
-}
-
-// Prints control/reverse_control/data/reverse_data dependencies of the node
-// (calculated by the LLVMDependencyGraph @dg)
-void dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node) {
-  logPrint("--- [NODE]");
-  errs() << "node address: " << node_value << "\n";
-  logPrintFlat("  node value: ");
-  node_value->dump();
-  logPrint("");
-
-  logPrint("----  subraphs: " + std::to_string(node->hasSubgraphs()));
-
-  { // Control dependencies info print.
-    logPrint("----    num CD: " +
-             std::to_string(node->getControlDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->control_begin(), e = node->control_end(); i != e;
-           ++i) {
-        logPrint("");
-        errs() << (*i) << "\n";   // Prints node address that CD points to.
-        (*i)->getValue()->dump(); // Dumps contents of the node pointed by CD.
-      }
-      logPrint("");
-    }
-  }
-
-  { // Reverse control dependencies info print.
-    logPrint("---- num revCD: " +
-             std::to_string(node->getRevControlDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->rev_control_begin(), e = node->rev_control_end();
-           i != e; ++i) {
-        logPrint("");
-        errs() << (*i) << "\n"; // Prints node address that rev CD points to.
-        (*i)->getValue()
-            ->dump(); // Dumps contents of the node pointed by rev CD.
-      }
-      logPrint("");
-    }
-  }
-
-  { // Data dependencies info print.
-    logPrint("----    num DD: " +
-             std::to_string(node->getDataDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
-        logPrint("");
-        errs() << (*i) << "\n";   // Prints node address that DD points to.
-        (*i)->getValue()->dump(); // Dumps contents of the node pointed by DD.
-      }
-      logPrint("");
-    }
-  }
-
-  { // Reverse data dapendencies info print.
-    logPrint("---- num revDD: " +
-             std::to_string(node->getRevDataDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
-           ++i) {
-        logPrint("");
-        errs() << (*i) << "\n"; // Prints node address that rev DD points to.
-        (*i)->getValue()
-            ->dump(); // Dumps contents of the node pointed by rev DD.
-      }
-      logPrint("");
-    }
-  }
-
-  logPrint("");
-}
-
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Running on each module.
 bool APEXPass::runOnModule(Module &M) {
   logDumpModule(M);
 
   LLVMDependenceGraph dg;
-  { // Building control & data dependencies in for dg.
-    logPrint("======= Building Dependence Graph");
-    LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
-    //      dg.build(&M, pta, &current_function);
-    dg.build(&M, pta);
-    analysis::rd::LLVMReachingDefinitions rda(&M, pta);
-    // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
-    // ^^^^ Note: This segfaults, need to use SemisparseRda.
-    //            What is the difference anyway?
-    rda.run<analysis::rd::SemisparseRda>();
-    LLVMDefUseAnalysis dua(&dg, &rda, pta);
-    dua.run();
-    dg.computeControlDependencies(CD_ALG::CLASSIC);
-    logPrint("- done");
-  }
+  dgInit(M, dg);
 
   { // Extracting data from dg.
     const std::map<llvm::Value *, LLVMDependenceGraph *> &CF =
@@ -407,9 +25,6 @@ bool APEXPass::runOnModule(Module &M) {
     logPrint("====== Getting Constructed Functions");
     for (auto &function_dg : CF) {
       std::string function_name = function_dg.first->getName();
-      if (function_name != "main") {
-        continue;
-      }
       logPrint("- [FUNCTION]: " + function_name);
 
       for (auto &value_block : function_dg.second->getBlocks()) {
@@ -422,17 +37,6 @@ bool APEXPass::runOnModule(Module &M) {
       }
     }
   }
-
-  // TODO: Iterate over global nodes as well, e.g. GLOB FUNC x
-  // Iterates over blocks in dependence graph
-  //    for (auto &global : *dg.getGlobalNodes()) {
-  //      dgPrintBlockInfo(global.first, global.second);
-  //    }
-
-  //    for (auto &block : dg) {
-  //      dgPrintBlockInfo(block.first, block.second);
-  //    }
-  //  }
 
   // TODO: When you have computed dependencies continue with removing functions.
   // Create call graph from module.
@@ -514,4 +118,376 @@ bool APEXPass::runOnModule(Module &M) {
   */
 
   return true;
+}
+
+
+// Logging utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Simple logging print with newline.
+void APEXPass::logPrint(const std::string &message) {
+  errs() << message + "\n";
+}
+
+// Simple logging print WITHOUT newline.
+void APEXPass::logPrintFlat(const std::string &message) { errs() << message; }
+
+// Dumps whole Module.
+void APEXPass::logDumpModule(const Module &M) {
+  std::string module_name = M.getModuleIdentifier();
+  logPrint("======= [module: " + module_name + " dump] =======");
+  M.dump();
+  logPrint("======= [END module: " + module_name + " dump] =======\n");
+}
+
+
+// Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Prints contents of the vector of @functions.
+void APEXPass::functionVectorFlatPrint(
+    const std::vector<Function *> &functions) {
+  for (const Function *function : functions) {
+    logPrintFlat(function->getGlobalIdentifier() + ", ");
+  }
+  logPrint("");
+}
+
+// Takes pointer to function, iterates over instructions calling this function
+// and removes these instructions.
+//
+// Returns: number of removed instructions, -1 in case of error
+int APEXPass::functionRemoveCalls(const Function *F) {
+  int calls_removed = 0;
+
+  if (nullptr == F) {
+    return -1;
+  }
+
+  logPrint("- removing function calls to: " + F->getGlobalIdentifier());
+  for (const Use &use : F->uses()) {
+    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
+      std::string message = "- in: ";
+      message += UserInst->getFunction()->getName();
+      message += "; removing call instruction to: ";
+      message += F->getName();
+
+      if (!UserInst->getType()->isVoidTy()) {
+        // NOTE: Currently only removing void returning calls.
+        // TODO: handle non-void returning function calls in the future
+        message += "; removing non-void returning call is not yet supported! ";
+        message += "[ABORT]";
+        logPrint(message);
+        return -1;
+      }
+
+      logPrint(message);
+
+      UserInst->eraseFromParent();
+      calls_removed++;
+    } else {
+      return -1;
+    }
+  }
+  return calls_removed;
+}
+
+// Takes pointer to a function, removes all calls to this function and then
+// removes function itself.
+//
+// Returns: 0 if successful or -1 in case of error.
+int APEXPass::functionRemove(Function *F) {
+  if (nullptr == F) {
+    return -1;
+  }
+  std::string fcn_id = F->getGlobalIdentifier();
+
+  logPrint("======= [to remove function: " + fcn_id + "] =======");
+
+  if (functionRemoveCalls(F) < 0) {
+    return -1;
+  }
+
+  std::string message = "removing function: ";
+  message += F->getGlobalIdentifier();
+  logPrint(message);
+
+  F->eraseFromParent();
+
+  logPrint("======= [to remove function: " + fcn_id + "] =======\n");
+  return 0;
+}
+
+// TODO: Not used ATM.
+// Collects functions that call function @F into vector @callers.
+//
+// Returns: 0 in case of success, -1 if error.
+int APEXPass::functionGetCallers(const Function *F,
+                                 std::vector<Function *> &callers) {
+  if (nullptr == F) {
+    return -1;
+  }
+
+  for (const Use &use : F->uses()) {
+    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
+      if (!UserInst->getType()->isVoidTy()) {
+        // Currently only removing void returning calls.
+        // TODO: handle non-void returning function calls in the future
+        return -1;
+      }
+      callers.push_back(UserInst->getFunction());
+    } else {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+// Collects functions that are called by function @F into vector @callees.
+//
+// Returns: 0 in case of success, -1 if error.
+int APEXPass::functionGetCallees(const Function *F,
+                                 std::vector<Function *> &callees) {
+  if (nullptr == F) {
+    return -1;
+  }
+
+  for (auto &BB : *F) {
+    for (auto &I : BB) {
+      if (auto callinst = dyn_cast<CallInst>(&I)) {
+        Function *called_fcn = callinst->getCalledFunction();
+        if (nullptr == called_fcn) {
+          logPrint("called_fcn is nullptr [ERROR]");
+          return -1;
+        }
+        callees.push_back(called_fcn);
+      }
+    }
+  }
+  return 0;
+}
+
+
+// Callgraph utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Creates callgraph from module @M, starting from the function with global id
+// specified in @root. Callgraph is saved in vector @callgraph in the pairs
+// of the following format: <caller function, vector of called functions>.
+//
+// Returns: 0 in case of success, -1 if error.
+int APEXPass::createCallGraph(
+    const Module &M, const std::string &root,
+    std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
+  // Collect root function.
+  Function *root_fcn = M.getFunction(root);
+  if (nullptr == root_fcn) {
+    logPrint("root function should not be nullptr after collecting [ERROR]");
+    return -1;
+  }
+
+  { // Construct call graph.
+    std::vector<Function *> queue;
+    queue.push_back(root_fcn);
+
+    while (false == queue.empty()) {
+      Function *node = queue.back();
+      queue.pop_back();
+
+      // Find call functions that are called by the node.
+      std::vector<Function *> node_callees;
+      if (functionGetCallees(node, node_callees) < 0) {
+        logPrint("failed to collect target callees [ERROR]");
+        return -1;
+      }
+
+      // Make caller->callees pair and save it.
+      std::pair<Function *, std::vector<Function *>> caller_callees;
+      caller_callees.first = node;
+      caller_callees.second = node_callees;
+      callgraph.push_back(caller_callees);
+
+      // Put callees to queue, they will be examined next.
+      for (Function *callee : node_callees) {
+        queue.push_back(callee);
+      }
+    }
+  }
+  return 0;
+}
+
+// Prints @callgraph.
+void APEXPass::printCallGraph(
+    const std::vector<std::pair<Function *, std::vector<Function *>>>
+        &callgraph) {
+  logPrint("======= [callgraph] =======");
+  for (auto &caller_callees : callgraph) {
+    std::string caller = caller_callees.first->getGlobalIdentifier();
+    std::string callees = " -> ";
+    if (caller_callees.second.empty()) {
+      callees += "[External/Nothing]";
+    }
+    for (auto &callee : caller_callees.second) {
+      callees += callee->getGlobalIdentifier();
+      callees += ", ";
+    }
+    logPrint(caller + callees);
+  }
+  logPrint("======= [callgraph] =======\n");
+}
+
+// Uses BFS to find path in @callgraph from @start to @end (both are global
+// Function IDs). Result is stored in the @final_path.
+//
+// Returns: 0 in success, -1 if error.
+int APEXPass::findPath(
+    const std::vector<std::pair<Function *, std::vector<Function *>>>
+        &callgraph,
+    const std::string &start, const std::string &end,
+    std::vector<Function *> &final_path) {
+  { // Computes path, stores
+    std::vector<std::vector<std::string>> queue;
+    std::vector<std::string> v_start;
+    v_start.push_back(start);
+    queue.push_back(v_start);
+
+    while (false == queue.empty()) {
+      std::vector<std::string> path = queue.back();
+      queue.pop_back();
+
+      std::string node = path.back();
+
+      // Found the end. Store function pointers to @final_path.
+      if (node == end) {
+        for (const std::string node_id : path) {
+          for (auto &caller_callees : callgraph) {
+            Function *caller = caller_callees.first;
+            if (caller->getGlobalIdentifier() == node_id) {
+              final_path.push_back(caller);
+            }
+          }
+        }
+        return 0;
+      }
+
+      // Find adjacent/called nodes of @node and save them to @callees.
+      std::vector<Function *> callees;
+      for (auto &caller_callees : callgraph) {
+        if (node == caller_callees.first->getGlobalIdentifier()) {
+          callees = caller_callees.second;
+        }
+      }
+
+      // Iterate over adjacent/called nodes and add them to the path.
+      for (Function *callee : callees) {
+        std::string callee_id = callee->getGlobalIdentifier();
+        std::vector<std::string> new_path = path;
+        new_path.push_back(callee_id);
+        queue.push_back(new_path);
+      }
+    }
+  }
+
+  return -1;
+}
+
+// Prints @path
+void APEXPass::printPath(const std::vector<Function *> &path) {
+  logPrint("======= [source->target path] =======");
+  for (auto &node : path) {
+    logPrint(node->getGlobalIdentifier());
+  }
+  logPrint("======= [source->target path] =======\n");
+}
+
+
+// dg utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Prints control/reverse_control/data/reverse_data dependencies of the node
+// (calculated by the LLVMDependencyGraph @dg)
+void APEXPass::dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node) {
+  logPrint("--- [NODE]");
+  errs() << "node address: " << node_value << "\n";
+  logPrintFlat("  node value: ");
+  node_value->dump();
+  logPrint("");
+
+  logPrint("----  subraphs: " + std::to_string(node->hasSubgraphs()));
+
+  { // Control dependencies info print.
+    logPrint("----    num CD: " +
+             std::to_string(node->getControlDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->control_begin(), e = node->control_end(); i != e;
+           ++i) {
+        logPrint("");
+        errs() << (*i) << "\n";   // Prints node address that CD points to.
+        (*i)->getValue()->dump(); // Dumps contents of the node pointed by CD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Reverse control dependencies info print.
+    logPrint("---- num revCD: " +
+             std::to_string(node->getRevControlDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->rev_control_begin(), e = node->rev_control_end();
+           i != e; ++i) {
+        logPrint("");
+        errs() << (*i) << "\n"; // Prints node address that rev CD points to.
+        (*i)->getValue()
+            ->dump(); // Dumps contents of the node pointed by rev CD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Data dependencies info print.
+    logPrint("----    num DD: " +
+             std::to_string(node->getDataDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
+        logPrint("");
+        errs() << (*i) << "\n";   // Prints node address that DD points to.
+        (*i)->getValue()->dump(); // Dumps contents of the node pointed by DD.
+      }
+      logPrint("");
+    }
+  }
+
+  { // Reverse data dapendencies info print.
+    logPrint("---- num revDD: " +
+             std::to_string(node->getRevDataDependenciesNum()));
+    if (_LOG_VERBOSE) {
+      for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
+           ++i) {
+        logPrint("");
+        errs() << (*i) << "\n"; // Prints node address that rev DD points to.
+        (*i)->getValue()
+            ->dump(); // Dumps contents of the node pointed by rev DD.
+      }
+      logPrint("");
+    }
+  }
+
+  logPrint("");
+}
+
+// Initializes LLVMDependenceGraph (calculating control & data dependencies).
+void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
+  if (_LOG_VERBOSE) {
+    logPrint("======= Building Dependence Graph");
+  }
+  LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
+  //      dg.build(&M, pta, &current_function);
+  dg.build(&M, pta);
+  analysis::rd::LLVMReachingDefinitions rda(&M, pta);
+  // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
+  // ^^^^ Note: This segfaults, need to use SemisparseRda.
+  //            What is the difference anyway?
+  rda.run<analysis::rd::SemisparseRda>();
+  LLVMDefUseAnalysis dua(&dg, &rda, pta);
+  dua.run();
+  dg.computeControlDependencies(CD_ALG::CLASSIC);
+  if (_LOG_VERBOSE) {
+    logPrint("- done");
+  }
 }
