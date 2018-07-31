@@ -24,26 +24,44 @@
 using namespace llvm;
 using namespace dg;
 
+
+struct APEXDependencyNode {
+    // Node == Function.
+    std::string function_name;
+    std::vector<LLVMNode *> control_depenencies;
+    std::vector<LLVMNode *> rev_control_depenencies;
+    std::vector<LLVMNode *> data_dependencies;
+    std::vector<LLVMNode *> rev_data_dependencies;
+};
+
+
+struct APEXDependencyGraph {
+    // Graph: consists of nodes that are functions.
+    std::vector<APEXDependencyNode> nodes;
+};
+
+
 class APEXPass : public ModulePass {
+    /* Actual APEX pass. */
 public:
     static char ID;
     APEXPass() : ModulePass(ID) {}
     bool runOnModule(Module &M) override;
 
 private:
-    /* Logging utilities */
+    /* Logging utilities. */
     void logPrint(const std::string &message);
     void logPrintFlat(const std::string &message);
     void logDumpModule(const Module &M);
 
-    /* Function utilities */
+    /* Function utilities. */
     void functionVectorFlatPrint(const std::vector<Function *> &functions);
     int functionRemoveCalls(const Function *F);
     int functionRemove(Function *F);
     int functionGetCallers(const Function *F, std::vector<Function *> &callers);
     int functionGetCallees(const Function *F, std::vector<Function *> &callees);
 
-    /* Callgraph utilities */
+    /* Callgraph utilities. */
     int createCallGraph(
             const Module &M, const std::string &root,
             std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph);
@@ -56,8 +74,8 @@ private:
                  std::vector<Function *> &final_path);
     void printPath(const std::vector<Function *> &path);
 
-    /* dg utilities */
-    void dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node);
+    /* dg utilities. */
+    void dgGetBlockNodeInfo(APEXDependencyNode &apex_node, const Value *node_value, LLVMNode *node);
     void dgInit(Module &M, LLVMDependenceGraph &dg);
 };
 

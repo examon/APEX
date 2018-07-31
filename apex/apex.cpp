@@ -8,6 +8,11 @@
 // This file implements APEX as LLVM Pass (APEXPass). See build_and_run.sh for
 // information about how to run APEXPass.
 
+
+// TODO: make APEXDependencyGraph printer
+
+#define DEBUG
+
 #include "apex.h"
 #include "apex_config.h"
 
@@ -18,6 +23,8 @@ bool APEXPass::runOnModule(Module &M) {
   LLVMDependenceGraph dg;
   dgInit(M, dg);
 
+  APEXDependencyGraph apex_dg;
+
   { // Extracting data from dg.
     const std::map<llvm::Value *, LLVMDependenceGraph *> &CF =
         getConstructedFunctions();
@@ -27,14 +34,19 @@ bool APEXPass::runOnModule(Module &M) {
       std::string function_name = function_dg.first->getName();
       logPrint("- [FUNCTION]: " + function_name);
 
+      APEXDependencyNode apex_node;
+      apex_node.function_name = function_name;
+
       for (auto &value_block : function_dg.second->getBlocks()) {
         logPrint("-- [BLOCK]:");
         value_block.first->dump();
 
         for (auto &llvm_node : value_block.second->getNodes()) {
-          dgPrintBlockNodeInfo(llvm_node->getValue(), llvm_node);
+          dgGetBlockNodeInfo(apex_node, llvm_node->getValue(), llvm_node);
         }
       }
+
+      apex_dg.nodes.push_back(apex_node);
     }
   }
 
@@ -120,7 +132,6 @@ bool APEXPass::runOnModule(Module &M) {
   return true;
 }
 
-
 // Logging utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Simple logging print with newline.
@@ -138,7 +149,6 @@ void APEXPass::logDumpModule(const Module &M) {
   M.dump();
   logPrint("======= [END module: " + module_name + " dump] =======\n");
 }
-
 
 // Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -264,7 +274,6 @@ int APEXPass::functionGetCallees(const Function *F,
   }
   return 0;
 }
-
 
 // Callgraph utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -397,12 +406,12 @@ void APEXPass::printPath(const std::vector<Function *> &path) {
   logPrint("======= [source->target path] =======\n");
 }
 
-
 // dg utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-// Prints control/reverse_control/data/reverse_data dependencies of the node
-// (calculated by the LLVMDependencyGraph @dg)
-void APEXPass::dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node) {
+// Stores control/reverse_control/data/reverse_data dependencies of the node
+// (calculated by the LLVMDependencyGraph @dg) to the @apex_node.
+void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
+                                  const Value *node_value, LLVMNode *node) {
   logPrint("--- [NODE]");
   errs() << "node address: " << node_value << "\n";
   logPrintFlat("  node value: ");
@@ -411,61 +420,62 @@ void APEXPass::dgPrintBlockNodeInfo(const Value *node_value, LLVMNode *node) {
 
   logPrint("----  subraphs: " + std::to_string(node->hasSubgraphs()));
 
-  { // Control dependencies info print.
+  { // Control dependencies.
     logPrint("----    num CD: " +
              std::to_string(node->getControlDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->control_begin(), e = node->control_end(); i != e;
-           ++i) {
-        logPrint("");
-        errs() << (*i) << "\n";   // Prints node address that CD points to.
-        (*i)->getValue()->dump(); // Dumps contents of the node pointed by CD.
-      }
+    for (auto i = node->control_begin(), e = node->control_end(); i != e; ++i) {
+      LLVMNode *cd_node = *i;
+      apex_node.control_depenencies.push_back(cd_node);
+
       logPrint("");
+      errs() << cd_node << "\n";   // Prints node address that CD points to.
+      cd_node->getValue()->dump(); // Dumps contents of the node pointed by CD.
     }
+    //    logPrint("");
   }
 
   { // Reverse control dependencies info print.
     logPrint("---- num revCD: " +
              std::to_string(node->getRevControlDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->rev_control_begin(), e = node->rev_control_end();
-           i != e; ++i) {
-        logPrint("");
-        errs() << (*i) << "\n"; // Prints node address that rev CD points to.
-        (*i)->getValue()
-            ->dump(); // Dumps contents of the node pointed by rev CD.
-      }
+    for (auto i = node->rev_control_begin(), e = node->rev_control_end();
+         i != e; ++i) {
+      LLVMNode *rev_cd_node = *i;
+      apex_node.rev_control_depenencies.push_back(rev_cd_node);
+
       logPrint("");
+      errs() << (*i) << "\n";   // Prints node address that rev CD points to.
+      (*i)->getValue()->dump(); // Dumps node pointed by rev CD.
     }
+    //    logPrint("");
   }
 
   { // Data dependencies info print.
     logPrint("----    num DD: " +
              std::to_string(node->getDataDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
-        logPrint("");
-        errs() << (*i) << "\n";   // Prints node address that DD points to.
-        (*i)->getValue()->dump(); // Dumps contents of the node pointed by DD.
-      }
+    for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
+      LLVMNode *dd_node = *i;
+      apex_node.data_dependencies.push_back(dd_node);
+
       logPrint("");
+      errs() << (*i) << "\n";   // Prints node address that DD points to.
+      (*i)->getValue()->dump(); // Dumps contents of the node pointed by DD.
     }
+    //    logPrint("");
   }
 
   { // Reverse data dapendencies info print.
     logPrint("---- num revDD: " +
              std::to_string(node->getRevDataDependenciesNum()));
-    if (_LOG_VERBOSE) {
-      for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
-           ++i) {
-        logPrint("");
-        errs() << (*i) << "\n"; // Prints node address that rev DD points to.
-        (*i)->getValue()
-            ->dump(); // Dumps contents of the node pointed by rev DD.
-      }
+    for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
+         ++i) {
+      LLVMNode *rev_dd_node = *i;
+      apex_node.rev_data_dependencies.push_back(rev_dd_node);
+
       logPrint("");
+      errs() << (*i) << "\n";   // Prints node address that rev DD points to.
+      (*i)->getValue()->dump(); // Dumps node pointed by rev DD.
     }
+    //    logPrint("");
   }
 
   logPrint("");
