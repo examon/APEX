@@ -25,9 +25,13 @@ using namespace llvm;
 using namespace dg;
 
 
-struct APEXDependencyNode {
-    // Node == Function.
-    std::string function_name;
+struct APEXDependencyFunction {
+    /* Function (can contain multiple basic blocks).
+     * LLVMNode is instruction.
+     */
+    std::string name;
+    Value *value;
+    std::vector<LLVMNode *> nodes;
     std::vector<LLVMNode *> control_depenencies;
     std::vector<LLVMNode *> rev_control_depenencies;
     std::vector<LLVMNode *> data_dependencies;
@@ -36,8 +40,8 @@ struct APEXDependencyNode {
 
 
 struct APEXDependencyGraph {
-    // Graph: consists of nodes that are functions.
-    std::vector<APEXDependencyNode> nodes;
+    /* Graph: consists of nodes that are functions. */
+    std::vector<APEXDependencyFunction> functions;
 };
 
 
@@ -75,8 +79,9 @@ private:
     void printPath(const std::vector<Function *> &path);
 
     /* dg utilities. */
-    void dgGetBlockNodeInfo(APEXDependencyNode &apex_node, const Value *node_value, LLVMNode *node);
+    void dgGetBlockNodeInfo(APEXDependencyFunction &apex_function, const Value *node_value, LLVMNode *node);
     void dgInit(Module &M, LLVMDependenceGraph &dg);
+    void dgPrint(APEXDependencyGraph &dg);
 };
 
 

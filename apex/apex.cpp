@@ -8,7 +8,6 @@
 // This file implements APEX as LLVM Pass (APEXPass). See build_and_run.sh for
 // information about how to run APEXPass.
 
-
 // TODO: make APEXDependencyGraph printer
 
 #define DEBUG
@@ -34,21 +33,24 @@ bool APEXPass::runOnModule(Module &M) {
       std::string function_name = function_dg.first->getName();
       logPrint("- [FUNCTION]: " + function_name);
 
-      APEXDependencyNode apex_node;
-      apex_node.function_name = function_name;
+      APEXDependencyFunction apex_function;
+      apex_function.name = function_name;
+      apex_function.value = function_dg.first;
 
       for (auto &value_block : function_dg.second->getBlocks()) {
         logPrint("-- [BLOCK]:");
         value_block.first->dump();
 
         for (auto &llvm_node : value_block.second->getNodes()) {
-          dgGetBlockNodeInfo(apex_node, llvm_node->getValue(), llvm_node);
+          dgGetBlockNodeInfo(apex_function, llvm_node->getValue(), llvm_node);
         }
       }
 
-      apex_dg.nodes.push_back(apex_node);
+      apex_dg.functions.push_back(apex_function);
     }
   }
+
+  dgPrint(apex_dg);
 
   // TODO: When you have computed dependencies continue with removing functions.
   // Create call graph from module.
@@ -410,13 +412,15 @@ void APEXPass::printPath(const std::vector<Function *> &path) {
 
 // Stores control/reverse_control/data/reverse_data dependencies of the node
 // (calculated by the LLVMDependencyGraph @dg) to the @apex_node.
-void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
+void APEXPass::dgGetBlockNodeInfo(APEXDependencyFunction &apex_function,
                                   const Value *node_value, LLVMNode *node) {
   logPrint("--- [NODE]");
   errs() << "node address: " << node_value << "\n";
   logPrintFlat("  node value: ");
   node_value->dump();
   logPrint("");
+
+  apex_function.nodes.push_back(node);
 
   logPrint("----  subraphs: " + std::to_string(node->hasSubgraphs()));
 
@@ -425,7 +429,7 @@ void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
              std::to_string(node->getControlDependenciesNum()));
     for (auto i = node->control_begin(), e = node->control_end(); i != e; ++i) {
       LLVMNode *cd_node = *i;
-      apex_node.control_depenencies.push_back(cd_node);
+      apex_function.control_depenencies.push_back(cd_node);
 
       logPrint("");
       errs() << cd_node << "\n";   // Prints node address that CD points to.
@@ -440,7 +444,7 @@ void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
     for (auto i = node->rev_control_begin(), e = node->rev_control_end();
          i != e; ++i) {
       LLVMNode *rev_cd_node = *i;
-      apex_node.rev_control_depenencies.push_back(rev_cd_node);
+      apex_function.rev_control_depenencies.push_back(rev_cd_node);
 
       logPrint("");
       errs() << (*i) << "\n";   // Prints node address that rev CD points to.
@@ -454,7 +458,7 @@ void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
              std::to_string(node->getDataDependenciesNum()));
     for (auto i = node->data_begin(), e = node->data_end(); i != e; ++i) {
       LLVMNode *dd_node = *i;
-      apex_node.data_dependencies.push_back(dd_node);
+      apex_function.data_dependencies.push_back(dd_node);
 
       logPrint("");
       errs() << (*i) << "\n";   // Prints node address that DD points to.
@@ -469,7 +473,7 @@ void APEXPass::dgGetBlockNodeInfo(APEXDependencyNode &apex_node,
     for (auto i = node->rev_data_begin(), e = node->rev_data_end(); i != e;
          ++i) {
       LLVMNode *rev_dd_node = *i;
-      apex_node.rev_data_dependencies.push_back(rev_dd_node);
+      apex_function.rev_data_dependencies.push_back(rev_dd_node);
 
       logPrint("");
       errs() << (*i) << "\n";   // Prints node address that rev DD points to.
@@ -499,5 +503,40 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
   dg.computeControlDependencies(CD_ALG::CLASSIC);
   if (_LOG_VERBOSE) {
     logPrint("- done");
+  }
+}
+
+void APEXPass::dgPrint(APEXDependencyGraph &dg) {
+  // TODO: make sure adresses are really on point & right
+  // TODO: add verbose option
+  logPrint("======= APEXDependencyGraph");
+  for (APEXDependencyFunction &f : dg.functions) {
+    logPrintFlat("[" + f.name + "]: ");
+    errs() << f.value << "\n"; // prints f address
+    logPrint(" - [total nodes]: " + std::to_string(f.nodes.size()));
+    logPrint(" - [nodes dump]:");
+    for (auto &node : f.nodes) {
+      logPrintFlat("   - [");
+      errs() << node;
+      logPrint("]");
+    }
+
+    for (LLVMNode *cd : f.control_depenencies) {
+      logPrintFlat(" - [cd]: ");
+      errs() << cd << "\n";
+    }
+    for (LLVMNode *rev_cd : f.rev_control_depenencies) {
+      logPrintFlat(" - [rev_cd]: ");
+      errs() << rev_cd << "\n";
+    }
+    for (LLVMNode *dd : f.data_dependencies) {
+      logPrintFlat(" - [dd]: ");
+      errs() << dd << "\n";
+    }
+    for (LLVMNode *rev_dd : f.rev_data_dependencies) {
+      logPrintFlat(" - [rev_dd]: ");
+      errs() << rev_dd << "\n";
+    }
+    logPrint("");
   }
 }
