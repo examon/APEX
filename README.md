@@ -15,7 +15,7 @@ In order to run APEX, you need to have llvm installed:
 
 Input C source code is located in the [test.c](c-code/test.c). <br>
 Source and target functions defining start and end of the active code path can
-be specified in the [apex_config.h](apex/apex_config.h).
+be specified in the [apex.h](apex/apex.h).
 
 After providing input, run `make run`. Check `apex/build` for output.
 

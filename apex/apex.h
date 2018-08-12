@@ -24,18 +24,27 @@
 using namespace llvm;
 using namespace dg;
 
+bool _LOG_VERBOSE = true;
 
-struct APEXDependencyFunction {
-    /* Function (can contain multiple basic blocks).
-     * LLVMNode is instruction.
-     */
-    std::string name;
+// This is user input. TODO: move this out
+std::string _SOURCE = "main";
+std::string _TARGET = "y";
+
+
+struct APEXDependencyNode {
+    /* Node is usually line instruction of IR. Sometimes whole function. */
     Value *value;
-    std::vector<LLVMNode *> nodes;
     std::vector<LLVMNode *> control_depenencies;
     std::vector<LLVMNode *> rev_control_depenencies;
     std::vector<LLVMNode *> data_dependencies;
     std::vector<LLVMNode *> rev_data_dependencies;
+};
+
+
+struct APEXDependencyFunction {
+    /* Function (can contain multiple basic blocks). */
+    Value *value;
+    std::vector<APEXDependencyNode> nodes;
 };
 
 
@@ -55,6 +64,7 @@ public:
 private:
     /* Logging utilities. */
     void logPrint(const std::string &message);
+    void logPrintUnderline(const std::string &message);
     void logPrintFlat(const std::string &message);
     void logDumpModule(const Module &M);
 
@@ -79,9 +89,12 @@ private:
     void printPath(const std::vector<Function *> &path);
 
     /* dg utilities. */
-    void dgGetBlockNodeInfo(APEXDependencyFunction &apex_function, const Value *node_value, LLVMNode *node);
     void dgInit(Module &M, LLVMDependenceGraph &dg);
-    void dgPrint(APEXDependencyGraph &dg);
+
+    /* apex dg utilities. */
+    void apexDgInit(APEXDependencyGraph &apex_dg);
+    void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
+    void apexDgPrint(APEXDependencyGraph &dg, bool verbose);
 };
 
 
