@@ -30,6 +30,8 @@ bool APEXPass::runOnModule(Module &M) {
   /* Pretty prints apex_dg. */
   apexDgPrint(apex_dg, false);
 
+  // TODO: Figure out how to compute function dependencies.
+
   // TODO: When you have computed dependencies continue with removing functions.
   // Create call graph from module.
   /*
