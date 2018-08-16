@@ -26,9 +26,6 @@ using namespace dg;
 
 bool _LOG_VERBOSE = true;
 
-// This is user input. TODO: move this out
-std::string _SOURCE = "main";
-std::string _TARGET = "y";
 
 
 struct APEXDependencyNode {
@@ -94,7 +91,8 @@ private:
     /* apex dg utilities. */
     void apexDgInit(APEXDependencyGraph &apex_dg);
     void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
-    void apexDgPrint(APEXDependencyGraph &dg, bool verbose);
+    void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
+    void apexDgPrintDataDependenies(APEXDependencyGraph &apex_dg);
 };
 
 

@@ -101,21 +101,21 @@ mkdir dg_tools
 cd dg_tools
 
 
-../../dg/build/tools/llvm-dg-dump ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_no_opt.dot
-dot llvm_dg_dump_no_opt.dot -Tpdf -O
+#../../dg/build/tools/llvm-dg-dump ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_no_opt.dot
+#dot llvm_dg_dump_no_opt.dot -Tpdf -O
 
-#../../dg/build/tools/llvm-dg-dump -no-control ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_no_control_no_opt.dot
-#dot llvm_dg_dump_no_control_no_opt.dot -Tpdf -O
-#
+../../dg/build/tools/llvm-dg-dump -no-control ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_no_control_no_opt.dot
+dot llvm_dg_dump_no_control_no_opt.dot -Tpdf -O
+
 #../../dg/build/tools/llvm-dg-dump -no-data ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_no_data_no_opt.dot
 #dot llvm_dg_dump_no_data_no_opt.dot -Tpdf -O
-#
+
 #../../dg/build/tools/llvm-dg-dump -bb-only ../${BYTECODE_FROM_INPUT} > llvm_dg_dump_bb_only_no_opt.dot
 #dot llvm_dg_dump_bb_only_no_opt.dot -Tpdf -O
-#
+
 #../../dg/build/tools/llvm-ps-dump -dot ../${BYTECODE_FROM_INPUT} > llvm_ps_dump_no_opt.dot
 #dot llvm_ps_dump_no_opt.dot -Tsvgz -O
-#
+
 #../../dg/build/tools/llvm-rd-dump -dot ../${BYTECODE_FROM_INPUT} > llvm_rd_dump_no_opt.dot
 #dot llvm_rd_dump_no_opt.dot -Tpdf -O
 

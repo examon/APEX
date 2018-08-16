@@ -28,27 +28,30 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgInit(apex_dg);
 
   /* Pretty prints apex_dg. */
-  apexDgPrint(apex_dg, false);
+  // apexDgPrint(apex_dg, false);
+  apexDgPrintDataDependenies(apex_dg);
 
   // TODO: Figure out how to compute function dependencies.
 
   // TODO: When you have computed dependencies continue with removing functions.
-  // Create call graph from module.
-  /*
+
+  /* This is user input. TODO: move this out */
+  std::string _SOURCE = "main";
+  std::string _TARGET = "y";
+
+  /* Create call graph from module. */
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
   createCallGraph(M, _SOURCE, callgraph);
   printCallGraph(callgraph);
-  */
 
   // Find path from @source to @target in the @callgraph.
-  /*
   std::vector<Function *> path;
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path);
-  */
 
-  // Recursively add all called functions to the @path.
+  /* TODO: this needs to be redone with info from apex_dg */
   /*
+  // Recursively add all called functions to the @path.
   std::vector<Function *> functions_to_process = path;
   logPrint("======= [adding dependencies to @path =======");
   while (false == functions_to_process.empty()) {
@@ -123,11 +126,13 @@ void APEXPass::logPrint(const std::string &message) {
 
 // Simple logging print with newline.
 void APEXPass::logPrintUnderline(const std::string &message) {
-  errs() << "= " + message + " =\n";
   std::string underline = "";
   for (int i = 0; i < message.size() + 4; ++i) {
     underline.append("=");
   }
+  errs() << "\n";
+  errs() << underline + "\n";
+  errs() << "# " + message + " #\n";
   errs() << underline + "\n";
 }
 
@@ -277,10 +282,10 @@ int APEXPass::functionGetCallees(const Function *F,
 int APEXPass::createCallGraph(
     const Module &M, const std::string &root,
     std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
-  // Collect root function.
+  logPrintUnderline("createCallGraph(): Building call graph");
   Function *root_fcn = M.getFunction(root);
   if (nullptr == root_fcn) {
-    logPrint("root function should not be nullptr after collecting [ERROR]");
+    logPrint("- root function should not be nullptr after collecting [ERROR]");
     return -1;
   }
 
@@ -295,7 +300,7 @@ int APEXPass::createCallGraph(
       // Find call functions that are called by the node.
       std::vector<Function *> node_callees;
       if (functionGetCallees(node, node_callees) < 0) {
-        logPrint("failed to collect target callees [ERROR]");
+        logPrint("- failed to collect target callees [ERROR]");
         return -1;
       }
 
@@ -311,6 +316,7 @@ int APEXPass::createCallGraph(
       }
     }
   }
+  logPrint("- done");
   return 0;
 }
 
@@ -318,7 +324,7 @@ int APEXPass::createCallGraph(
 void APEXPass::printCallGraph(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph) {
-  logPrint("======= [callgraph] =======");
+  logPrintUnderline("Printing callgraph");
   for (auto &caller_callees : callgraph) {
     std::string caller = caller_callees.first->getGlobalIdentifier();
     std::string callees = " -> ";
@@ -331,7 +337,6 @@ void APEXPass::printCallGraph(
     }
     logPrint(caller + callees);
   }
-  logPrint("======= [callgraph] =======\n");
 }
 
 // Uses BFS to find path in @callgraph from @start to @end (both are global
@@ -341,61 +346,66 @@ void APEXPass::printCallGraph(
 int APEXPass::findPath(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph,
-    const std::string &start, const std::string &end,
+    const std::string &source, const std::string &target,
     std::vector<Function *> &final_path) {
-  { // Computes path, stores
-    std::vector<std::vector<std::string>> queue;
-    std::vector<std::string> v_start;
-    v_start.push_back(start);
-    queue.push_back(v_start);
 
-    while (false == queue.empty()) {
-      std::vector<std::string> path = queue.back();
-      queue.pop_back();
+  logPrintUnderline("findPath(): Finding path from @" + source + " to @" +
+                    target);
+  std::vector<std::vector<std::string>> queue;
+  std::vector<std::string> v_start;
+  v_start.push_back(source);
+  queue.push_back(v_start);
 
-      std::string node = path.back();
+  while (false == queue.empty()) {
+    std::vector<std::string> path = queue.back();
+    queue.pop_back();
 
-      // Found the end. Store function pointers to @final_path.
-      if (node == end) {
-        for (const std::string node_id : path) {
-          for (auto &caller_callees : callgraph) {
-            Function *caller = caller_callees.first;
-            if (caller->getGlobalIdentifier() == node_id) {
-              final_path.push_back(caller);
-            }
+    std::string node = path.back();
+
+    /* Found the end. Store function pointers to @final_path. */
+    if (node == target) {
+      for (const std::string node_id : path) {
+        for (auto &caller_callees : callgraph) {
+          Function *caller = caller_callees.first;
+          if (caller->getGlobalIdentifier() == node_id) {
+            final_path.push_back(caller);
           }
         }
-        return 0;
       }
+      logPrint("- done");
+      return 0;
+    }
 
-      // Find adjacent/called nodes of @node and save them to @callees.
-      std::vector<Function *> callees;
-      for (auto &caller_callees : callgraph) {
-        if (node == caller_callees.first->getGlobalIdentifier()) {
-          callees = caller_callees.second;
-        }
+    /* Find adjacent/called nodes of @node and save them to @callees. */
+    std::vector<Function *> callees;
+    for (auto &caller_callees : callgraph) {
+      if (node == caller_callees.first->getGlobalIdentifier()) {
+        callees = caller_callees.second;
       }
+    }
 
-      // Iterate over adjacent/called nodes and add them to the path.
-      for (Function *callee : callees) {
-        std::string callee_id = callee->getGlobalIdentifier();
-        std::vector<std::string> new_path = path;
-        new_path.push_back(callee_id);
-        queue.push_back(new_path);
-      }
+    /* Iterate over adjacent/called nodes and add them to the path. */
+    for (Function *callee : callees) {
+      std::string callee_id = callee->getGlobalIdentifier();
+      std::vector<std::string> new_path = path;
+      new_path.push_back(callee_id);
+      queue.push_back(new_path);
     }
   }
 
+  logPrint("- Unable to find path from @" + source + " to @" + target +
+           " [ERROR]");
   return -1;
 }
 
 // Prints @path
 void APEXPass::printPath(const std::vector<Function *> &path) {
-  logPrint("======= [source->target path] =======");
+  logPrintUnderline("printPath(): source -> target path");
+
   for (auto &node : path) {
     logPrint(node->getGlobalIdentifier());
   }
-  logPrint("======= [source->target path] =======\n");
+  logPrint("");
 }
 
 // dg utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -403,7 +413,7 @@ void APEXPass::printPath(const std::vector<Function *> &path) {
 // Initializes LLVMDependenceGraph (calculating control & data dependencies).
 void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
   if (_LOG_VERBOSE) {
-    logPrintUnderline("Building Dependence Graph");
+    logPrintUnderline("dgInit(): Building dependence graph");
   }
   LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
   //      dg.build(&M, pta, &current_function);
@@ -417,7 +427,7 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
   dua.run();
   dg.computeControlDependencies(CD_ALG::CLASSIC);
   if (_LOG_VERBOSE) {
-    logPrint("- done\n");
+    logPrint("- done");
   }
 }
 
@@ -429,6 +439,7 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
  *          inicialised in for this to properly work -> CF map will be empty
  */
 void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
+  logPrintUnderline("apexDgInit(): Building apex dependency graph");
   const std::map<llvm::Value *, LLVMDependenceGraph *> &CF =
       getConstructedFunctions(); /* Need to call this (dg reasons...). */
 
@@ -450,9 +461,9 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
         apex_function.nodes.push_back(apex_node);
       }
     }
-
     apex_dg.functions.push_back(apex_function);
   }
+  logPrint("- done");
 }
 
 // Stores control/reverse_control/data/reverse_data dependencies of the node
@@ -481,11 +492,11 @@ void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
   }
 }
 
-void APEXPass::apexDgPrint(APEXDependencyGraph &dg, bool verbose) {
+void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
   logPrintUnderline("APEXDependencyGraph");
   logPrint("== [functions dump]:");
 
-  for (APEXDependencyFunction &function : dg.functions) {
+  for (APEXDependencyFunction &function : apex_dg.functions) {
     /* Print function info. */
     std::string function_name = function.value->getName();
     logPrintFlat("   == function [" + function_name + "] value address: ");
@@ -511,6 +522,7 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &dg, bool verbose) {
       logPrint("");
 
       /* Print dependencies. */
+
       logPrint("          - [cd]:");
       for (LLVMNode *cd : node.control_depenencies) {
         logPrintFlat("             - ");
@@ -533,6 +545,7 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &dg, bool verbose) {
         }
       }
 
+      /* NOTE: dependency->getValue()->getName() is string */
       logPrint("          - [dd]:");
       for (LLVMNode *dd : node.data_dependencies) {
         logPrintFlat("            - ");
@@ -556,6 +569,48 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &dg, bool verbose) {
       }
 
       logPrint("");
+    }
+  }
+}
+
+void APEXPass::apexDgPrintDataDependenies(APEXDependencyGraph &apex_dg) {
+  logPrintUnderline("APEXDependencyGraph : data dependencies");
+  for (APEXDependencyFunction &function : apex_dg.functions) {
+    std::string fcn_name = function.value->getName();
+    logPrint("- " + fcn_name);
+    for (APEXDependencyNode &node : function.nodes) {
+      std::vector<LLVMNode *> dds;
+      std::vector<LLVMNode *> rev_dds;
+
+      for (LLVMNode *dd : node.data_dependencies) {
+        std::string dd_name = dd->getValue()->getName();
+        if (dd_name.size() > 0) {
+          dds.push_back(dd);
+        }
+      }
+      for (LLVMNode *rev_dd : node.rev_data_dependencies) {
+        std::string rev_dd_name = rev_dd->getValue()->getName();
+        if (rev_dd_name.size() > 0) {
+          dds.push_back(rev_dd);
+        }
+      }
+
+      if (dds.size() > 0 || rev_dds.size() > 0) {
+        logPrintFlat("-- node:");
+        node.value->dump();
+      }
+      if (dds.size() > 0) {
+        logPrint("--- dds:");
+        for (LLVMNode *dd : dds) {
+          errs() << dd->getValue()->getName() << "\n";
+        }
+      }
+      if (rev_dds.size() > 0) {
+        logPrint("--- dds:");
+        for (LLVMNode *dd : dds) {
+          errs() << dd->getValue()->getName() << "\n";
+        }
+      }
     }
   }
 }
