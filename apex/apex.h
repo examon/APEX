@@ -92,7 +92,7 @@ private:
     void apexDgInit(APEXDependencyGraph &apex_dg);
     void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
     void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
-    void apexDgPrintDataDependenies(APEXDependencyGraph &apex_dg);
+    void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
 };
 
 

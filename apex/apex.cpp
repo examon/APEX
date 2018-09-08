@@ -28,8 +28,8 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgInit(apex_dg);
 
   /* Pretty prints apex_dg. */
-  // apexDgPrint(apex_dg, false);
-  apexDgPrintDataDependenies(apex_dg);
+  apexDgPrint(apex_dg, true);
+  apexDgPrintDataDependeniesCompact(apex_dg);
 
   // TODO: Figure out how to compute function dependencies.
 
@@ -415,14 +415,17 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
   if (_LOG_VERBOSE) {
     logPrintUnderline("dgInit(): Building dependence graph");
   }
+  /* The reasoning why everything below is there:
+   * In order to get data dependencies, I've replicated
+   * what llvm-dg-dump tool is doing, so for details, check:
+   * dg/tools/llvm-dg-dump.cpp
+   */
   LLVMPointerAnalysis *pta = new LLVMPointerAnalysis(&M);
-  //      dg.build(&M, pta, &current_function);
+  pta->run<analysis::pta::PointsToFlowInsensitive>();
   dg.build(&M, pta);
   analysis::rd::LLVMReachingDefinitions rda(&M, pta);
-  // RDA.run<analysis::rd::ReachingDefinitionsAnalysis>();
-  // ^^^^ Note: This segfaults, need to use SemisparseRda.
-  //            What is the difference anyway?
-  rda.run<analysis::rd::SemisparseRda>();
+  rda.run<analysis::rd::ReachingDefinitionsAnalysis>();
+  // rda.run<analysis::rd::SemisparseRda>(); /* This is alternative to ^ */
   LLVMDefUseAnalysis dua(&dg, &rda, pta);
   dua.run();
   dg.computeControlDependencies(CD_ALG::CLASSIC);
@@ -492,7 +495,8 @@ void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
   }
 }
 
-void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
+// Pretty prints APEXDependencyGraph structure.
+void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool only_data) {
   logPrintUnderline("APEXDependencyGraph");
   logPrint("== [functions dump]:");
 
@@ -501,10 +505,6 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
     std::string function_name = function.value->getName();
     logPrintFlat("   == function [" + function_name + "] value address: ");
     errs() << function.value << "\n";
-    if (verbose) {
-      logPrint("   == function [" + function_name + "] value: ");
-      function.value->dump();
-    }
 
     /* Print node info. */
     logPrint("\n      = [nodes dump]:");
@@ -522,37 +522,31 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
       logPrint("");
 
       /* Print dependencies. */
-
-      logPrint("          - [cd]:");
-      for (LLVMNode *cd : node.control_depenencies) {
-        logPrintFlat("             - ");
-        std::string cd_name = cd->getValue()->getName();
-        errs() << cd->getValue() << " [" << cd_name << "]\n";
-
-        if (verbose) {
-          cd->getValue()->dump();
+      if (false == only_data) {
+        logPrint("          - [cd]:");
+        for (LLVMNode *cd : node.control_depenencies) {
+          logPrintFlat("             - ");
+          std::string cd_name = cd->getValue()->getName();
+          errs() << cd->getValue() << " [" << cd_name << "]\n";
         }
       }
 
-      logPrint("          - [rev cd]:");
-      for (LLVMNode *rev_cd : node.rev_control_depenencies) {
-        logPrintFlat("            - ");
-        std::string rev_cd_name = rev_cd->getValue()->getName();
-        errs() << rev_cd->getValue() << " [" << rev_cd_name << "]\n";
-
-        if (verbose) {
-          rev_cd->getValue()->dump();
+      if (false == only_data) {
+        logPrint("          - [rev cd]:");
+        for (LLVMNode *rev_cd : node.rev_control_depenencies) {
+          logPrintFlat("            - ");
+          std::string rev_cd_name = rev_cd->getValue()->getName();
+          errs() << rev_cd->getValue() << " [" << rev_cd_name << "]\n";
         }
       }
 
-      /* NOTE: dependency->getValue()->getName() is string */
       logPrint("          - [dd]:");
       for (LLVMNode *dd : node.data_dependencies) {
         logPrintFlat("            - ");
         std::string dd_name = dd->getValue()->getName();
         errs() << dd->getValue() << " [" << dd_name << "]\n";
 
-        if (verbose) {
+        if (only_data && dd_name.size() == 0) {
           dd->getValue()->dump();
         }
       }
@@ -563,7 +557,7 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
         std::string rev_dd_name = rev_dd->getValue()->getName();
         errs() << rev_dd->getValue() << " [" << rev_dd_name << "]\n";
 
-        if (verbose) {
+        if (only_data && rev_dd_name.size() == 0) {
           rev_dd->getValue()->dump();
         }
       }
@@ -573,43 +567,25 @@ void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose) {
   }
 }
 
-void APEXPass::apexDgPrintDataDependenies(APEXDependencyGraph &apex_dg) {
+// Pretty prints APEXDependencyGraph structure, but only with data dependencies.
+void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
   logPrintUnderline("APEXDependencyGraph : data dependencies");
   for (APEXDependencyFunction &function : apex_dg.functions) {
     std::string fcn_name = function.value->getName();
-    logPrint("- " + fcn_name);
+    logPrint("\n=> " + fcn_name);
     for (APEXDependencyNode &node : function.nodes) {
-      std::vector<LLVMNode *> dds;
-      std::vector<LLVMNode *> rev_dds;
+
+      logPrintFlat("\n===> node:");
+      node.value->dump();
+      logPrint("[dd]:");
 
       for (LLVMNode *dd : node.data_dependencies) {
-        std::string dd_name = dd->getValue()->getName();
-        if (dd_name.size() > 0) {
-          dds.push_back(dd);
-        }
-      }
-      for (LLVMNode *rev_dd : node.rev_data_dependencies) {
-        std::string rev_dd_name = rev_dd->getValue()->getName();
-        if (rev_dd_name.size() > 0) {
-          dds.push_back(rev_dd);
-        }
+        dd->getValue()->dump();
       }
 
-      if (dds.size() > 0 || rev_dds.size() > 0) {
-        logPrintFlat("-- node:");
-        node.value->dump();
-      }
-      if (dds.size() > 0) {
-        logPrint("--- dds:");
-        for (LLVMNode *dd : dds) {
-          errs() << dd->getValue()->getName() << "\n";
-        }
-      }
-      if (rev_dds.size() > 0) {
-        logPrint("--- dds:");
-        for (LLVMNode *dd : dds) {
-          errs() << dd->getValue()->getName() << "\n";
-        }
+      logPrint("[rev_dd]:");
+      for (LLVMNode *rev_dd : node.rev_data_dependencies) {
+        rev_dd->getValue()->dump();
       }
     }
   }
