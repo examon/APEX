@@ -5,17 +5,12 @@ int x(void) {
 }
 
 int y(int n) {
-  return n+1;
-}
-
-int z(int n) {
-  return n+2;
+  return n;
 }
 
 int main(void) {
   int x_ret = x();
   y(x_ret);
-  z(x_ret);
-  
+
   return 0;
 }
