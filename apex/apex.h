@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@ bool _LOG_VERBOSE = true;
 
 struct APEXDependencyNode {
     /* Node is usually line instruction of IR. Sometimes whole function. */
+    LLVMNode *node;
     Value *value;
     std::vector<LLVMNode *> control_depenencies;
     std::vector<LLVMNode *> rev_control_depenencies;
@@ -48,6 +50,7 @@ struct APEXDependencyFunction {
 struct APEXDependencyGraph {
     /* Graph: consists of nodes that are functions. */
     std::vector<APEXDependencyFunction> functions;
+    std::map<LLVMNode *, std::vector<LLVMNode *>> graph;
 };
 
 
@@ -81,7 +84,7 @@ private:
             &callgraph);
     int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
                  &callgraph,
-                 const std::string &start, const std::string &end,
+                 const std::string &source, const std::string &target,
                  std::vector<Function *> &final_path);
     void printPath(const std::vector<Function *> &path);
 
@@ -93,6 +96,7 @@ private:
     void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
     void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
     void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
+    void apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg, bool print_graph);
 };
 
 

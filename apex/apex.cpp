@@ -27,9 +27,12 @@ bool APEXPass::runOnModule(Module &M) {
   /* Initialize apex_dg, so we have dependencies in neat graph. */
   apexDgInit(apex_dg);
 
-  /* Pretty prints apex_dg. */
+  /* Pretty print apex_dg. */
   apexDgPrint(apex_dg, true);
   apexDgPrintDataDependeniesCompact(apex_dg);
+
+  /* Make graph out of data dependencies. */
+  apexDgMakeGraphPrint(apex_dg, true);
 
   // TODO: Figure out how to compute function dependencies.
 
@@ -37,7 +40,7 @@ bool APEXPass::runOnModule(Module &M) {
 
   /* This is user input. TODO: move this out */
   std::string _SOURCE = "main";
-  std::string _TARGET = "y";
+  std::string _TARGET = "x";
 
   /* Create call graph from module. */
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
@@ -459,6 +462,7 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
          * dependencies that is has to other nodes.
          */
         APEXDependencyNode apex_node;
+        apex_node.node = node;
         apex_node.value = node->getValue();
         apexDgGetBlockNodeInfo(apex_node, node);
         apex_function.nodes.push_back(apex_node);
@@ -588,5 +592,40 @@ void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
         rev_dd->getValue()->dump();
       }
     }
+  }
+}
+
+// Takes APEXDependencyGraph, makes graph out of data dependencies and stores
+// this graph into APEXDependencyGraph.graph variable.
+//
+// If @print == true, also prints the constructed graph.
+void APEXPass::apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg,
+                                    bool print_graph) {
+  logPrintUnderline("apexDgMakeGraph(): building data dependencies graph");
+  std::map<LLVMNode *, std::vector<LLVMNode *>> graph;
+
+  for (APEXDependencyFunction &f : apex_dg.functions) {
+    for (APEXDependencyNode &n : f.nodes) {
+      graph[n.node] = n.data_dependencies;
+    }
+  }
+  apex_dg.graph = graph;
+  logPrint(" - done");
+
+  if (false == print_graph) {
+    return;
+  }
+
+  logPrint("");
+  for (auto &node_dependencies : apex_dg.graph) {
+    errs() << "KEY: " << node_dependencies.first << "\n";
+    node_dependencies.first->getValue()->dump();
+    logPrint("");
+    for (LLVMNode *dd : node_dependencies.second) {
+      errs() << "    *** " << dd << "\n";
+      dd->getValue()->dump();
+      logPrint("");
+    }
+    logPrint("===");
   }
 }
