@@ -34,10 +34,6 @@ bool APEXPass::runOnModule(Module &M) {
   /* Make graph out of data dependencies. */
   apexDgMakeGraphPrint(apex_dg, true);
 
-  // TODO: Figure out how to compute function dependencies.
-
-  // TODO: When you have computed dependencies continue with removing functions.
-
   /* This is user input. TODO: move this out */
   std::string _SOURCE = "main";
   std::string _TARGET = "x";
@@ -50,7 +46,10 @@ bool APEXPass::runOnModule(Module &M) {
   // Find path from @source to @target in the @callgraph.
   std::vector<Function *> path;
   findPath(callgraph, _SOURCE, _TARGET, path);
-  printPath(path);
+  printPath(path, _SOURCE, _TARGET);
+
+  // TODO: Figure out how to compute function dependencies.
+  // TODO: When you have computed dependencies continue with removing functions.
 
   /* TODO: this needs to be redone with info from apex_dg */
   /*
@@ -345,6 +344,8 @@ void APEXPass::printCallGraph(
 // Uses BFS to find path in @callgraph from @start to @end (both are global
 // Function IDs). Result is stored in the @final_path.
 //
+// Prints path if @print_path is true.
+//
 // Returns: 0 in success, -1 if error.
 int APEXPass::findPath(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
@@ -398,12 +399,14 @@ int APEXPass::findPath(
 
   logPrint("- Unable to find path from @" + source + " to @" + target +
            " [ERROR]");
+
   return -1;
 }
 
 // Prints @path
-void APEXPass::printPath(const std::vector<Function *> &path) {
-  logPrintUnderline("printPath(): source -> target path");
+void APEXPass::printPath(const std::vector<Function *> &path,
+                         const std::string &source, const std::string &target) {
+  logPrintUnderline("printPath(): " + source + " -> " + target);
 
   for (auto &node : path) {
     logPrint(node->getGlobalIdentifier());
@@ -595,21 +598,20 @@ void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
   }
 }
 
-// Takes APEXDependencyGraph, makes graph out of data dependencies and stores
-// this graph into APEXDependencyGraph.graph variable.
+// Takes APEXDependencyGraph, makes graph out of data dependencies between nodes
+// and stores this graph into APEXDependencyGraph.graph variable.
 //
 // If @print == true, also prints the constructed graph.
 void APEXPass::apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg,
                                     bool print_graph) {
   logPrintUnderline("apexDgMakeGraph(): building data dependencies graph");
-  std::map<LLVMNode *, std::vector<LLVMNode *>> graph;
 
   for (APEXDependencyFunction &f : apex_dg.functions) {
     for (APEXDependencyNode &n : f.nodes) {
-      graph[n.node] = n.data_dependencies;
+      apex_dg.node_data_dependencies_map[n.node] = n.data_dependencies;
+      apex_dg.node_function_map[n.node] = &f;
     }
   }
-  apex_dg.graph = graph;
   logPrint(" - done");
 
   if (false == print_graph) {
@@ -617,9 +619,12 @@ void APEXPass::apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg,
   }
 
   logPrint("");
-  for (auto &node_dependencies : apex_dg.graph) {
+  for (auto &node_dependencies : apex_dg.node_data_dependencies_map) {
     errs() << "KEY: " << node_dependencies.first << "\n";
     node_dependencies.first->getValue()->dump();
+    StringRef name =
+        apex_dg.node_function_map[node_dependencies.first]->value->getName();
+    errs() << "IN FCN: " << name << "\n";
     logPrint("");
     for (LLVMNode *dd : node_dependencies.second) {
       errs() << "    *** " << dd << "\n";
