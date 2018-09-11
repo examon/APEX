@@ -1,4 +1,5 @@
 run:
+	doxygen Doxyfile
 	./build_and_run.sh
 
 clean:

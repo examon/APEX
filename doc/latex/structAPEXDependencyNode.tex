@@ -1,0 +1,44 @@
+\section{A\+P\+E\+X\+Dependency\+Node Struct Reference}
+\label{structAPEXDependencyNode}\index{A\+P\+E\+X\+Dependency\+Node@{A\+P\+E\+X\+Dependency\+Node}}
+
+
+Node is usually line instruction of IR. Sometimes whole function.  
+
+
+
+
+{\ttfamily \#include $<$apex.\+h$>$}
+
+\subsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\label{structAPEXDependencyNode_a970e7a2fef904e104bff4c2fc5ff2cb1}} 
+L\+L\+V\+M\+Node $\ast$ {\bfseries node}
+\item 
+\mbox{\label{structAPEXDependencyNode_a8b3b641572bf365c4f731fc83b169984}} 
+Value $\ast$ {\bfseries value}
+\item 
+\mbox{\label{structAPEXDependencyNode_a6c402ac3d515fb024c9d8e08aced4f5c}} 
+std\+::vector$<$ L\+L\+V\+M\+Node $\ast$ $>$ {\bfseries control\+\_\+depenencies}
+\item 
+\mbox{\label{structAPEXDependencyNode_ae526db6103f708c8cfacbb0af242c65f}} 
+std\+::vector$<$ L\+L\+V\+M\+Node $\ast$ $>$ {\bfseries rev\+\_\+control\+\_\+depenencies}
+\item 
+\mbox{\label{structAPEXDependencyNode_ade99c6315545e206d562789348540cc0}} 
+std\+::vector$<$ L\+L\+V\+M\+Node $\ast$ $>$ {\bfseries data\+\_\+dependencies}
+\item 
+\mbox{\label{structAPEXDependencyNode_abcf07bec655009d666e6f2c1163f4dcb}} 
+std\+::vector$<$ L\+L\+V\+M\+Node $\ast$ $>$ {\bfseries rev\+\_\+data\+\_\+dependencies}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Node is usually line instruction of IR. Sometimes whole function. 
+
+Definition at line 30 of file apex.\+h.
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+apex.\+h\end{DoxyCompactItemize}
