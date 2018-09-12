@@ -16,6 +16,8 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
+#include <llvm/IR/Instructions.h>
+
 // We need this for dg integration.
 #include "analysis/PointsTo/PointsToFlowInsensitive.h"
 #include "llvm/LLVMDependenceGraph.h"

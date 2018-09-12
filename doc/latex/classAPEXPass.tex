@@ -83,7 +83,7 @@ void \textbf{ apex\+Dg\+Make\+Graph\+Print} (\textbf{ A\+P\+E\+X\+Dependency\+Gr
 \subsection{Detailed Description}
 Actual A\+P\+EX pass. 
 
-Definition at line 54 of file apex.\+h.
+Definition at line 56 of file apex.\+h.
 
 
 
@@ -100,7 +100,7 @@ Stores control/reverse\+\_\+control/data/reverse\+\_\+data dependencies of the n
 
 
 
-Definition at line 471 of file apex.\+cpp.
+Definition at line 490 of file apex.\+cpp.
 
 
 
@@ -118,7 +118,7 @@ Extracts data from dg and stores them into apex\+\_\+dg structure.
 
 Caution\+: \doxyref{dg\+Init()}{p.}{classAPEXPass_a960948a62a5a07ac11caaaf3de4ceb77} has to be called before \doxyref{apex\+Dg\+Init()}{p.}{classAPEXPass_af2ba08d10f4e4d1c387ac4741d876467}, dg needs to be initialized in for this to properly work -\/$>$ CF map will be empty 
 
-Definition at line 442 of file apex.\+cpp.
+Definition at line 444 of file apex.\+cpp.
 
 
 
@@ -140,7 +140,7 @@ Takes apex\+\_\+dg, makes graph out of data dependencies between nodes and store
 
 If print == true, also prints the constructed graph. 
 
-Definition at line 594 of file apex.\+cpp.
+Definition at line 613 of file apex.\+cpp.
 
 
 
@@ -164,7 +164,7 @@ Callgraph is saved in vector callgraph in the pairs of the following format\+: $
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 279 of file apex.\+cpp.
+Definition at line 281 of file apex.\+cpp.
 
 
 
@@ -188,7 +188,7 @@ Result is stored in the final\+\_\+path vector.
 
 Returns\+: 0 in success, -\/1 if error. 
 
-Definition at line 345 of file apex.\+cpp.
+Definition at line 347 of file apex.\+cpp.
 
 
 
@@ -210,7 +210,7 @@ Collects functions that are called by function F into vector callees.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 249 of file apex.\+cpp.
+Definition at line 251 of file apex.\+cpp.
 
 
 
@@ -218,7 +218,7 @@ References log\+Print().
 
 
 
-Referenced by create\+Call\+Graph(), and run\+On\+Module().
+Referenced by create\+Call\+Graph().
 
 \mbox{\label{classAPEXPass_a1258c9dd01922617edb48fe5802054ec}} 
 \index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!function\+Get\+Callers@{function\+Get\+Callers}}
@@ -232,7 +232,7 @@ Collects functions that call function F into vector callers.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 225 of file apex.\+cpp.
+Definition at line 227 of file apex.\+cpp.
 
 \mbox{\label{classAPEXPass_aa31ca4e0ca4bcc00e6352e01b59a320d}} 
 \index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!function\+Remove@{function\+Remove}}
@@ -246,7 +246,7 @@ Takes pointer to a function F, removes all calls to this function and then remov
 
 Returns\+: 0 if successful or -\/1 in case of error. 
 
-Definition at line 200 of file apex.\+cpp.
+Definition at line 202 of file apex.\+cpp.
 
 
 
@@ -268,7 +268,7 @@ Takes pointer to function F, iterates over instructions calling this function an
 
 Returns\+: number of removed instructions, -\/1 in case of error. 
 
-Definition at line 161 of file apex.\+cpp.
+Definition at line 163 of file apex.\+cpp.
 
 
 

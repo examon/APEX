@@ -44,11 +44,12 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path, _SOURCE, _TARGET);
 
-  // TODO: Figure out how to compute function dependencies.
-  // TODO: When you have computed dependencies continue with removing functions.
-
   /* TODO: this needs to be redone with info from apex_dg */
   // Recursively add all called functions to the @path.
+  logPrintUnderline("Calculating what functions to add into @path");
+  functionVectorFlatPrint(path);
+
+  /*
   logPrintUnderline("Adding functions to @path.");
   std::vector<Function *> functions_to_process = path;
   while (false == functions_to_process.empty()) {
@@ -64,21 +65,22 @@ bool APEXPass::runOnModule(Module &M) {
     std::vector<Function *> current_callees;
     functionGetCallees(current, current_callees);
 
-    for (auto &calee : current_callees) {
+    for (auto &callee : current_callees) {
       bool calee_to_be_processed = true;
       for (auto &path_fcn : path) {
-        if (calee->getGlobalIdentifier() == path_fcn->getGlobalIdentifier()) {
+        if (callee->getGlobalIdentifier() == path_fcn->getGlobalIdentifier()) {
           calee_to_be_processed = false;
         }
       }
       if (true == calee_to_be_processed) {
-        functions_to_process.push_back(calee);
-        path.push_back(calee);
-        logPrint("  - adding: " + calee->getGlobalIdentifier());
+        functions_to_process.push_back(callee);
+        path.push_back(callee);
+        logPrint("  - adding: " + callee->getGlobalIdentifier());
       }
     }
     logPrint("");
   }
+  */
 
   // Remove functions that do not affect calculated execution @path.
   logPrintUnderline("Removing functions that do not affect @path.");
@@ -457,6 +459,27 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
         APEXDependencyNode apex_node;
         apex_node.node = node;
         apex_node.value = node->getValue();
+
+        // TODO: Need to figure out if any function from @path has dependencies
+        //       and if those dependencies contain other function calls. If they
+        //       do, add those called functions into @path and recursively repeat.
+        if (isa<CallInst>(apex_node.value)) {
+          logPrint("is a call inst");
+        } else {
+          logPrint("is not call inst");
+        }
+        /*
+        if (auto callinst = dyn_cast<CallInst>(&apex_node.value)) {
+          Function *called_fcn = callinst->getCalledFunction();
+          if (nullptr == called_fcn) {
+            logPrint("called_fcn is nullptr");
+          } else {
+            std::string fcn_name = called_fcn->getName();
+            logPrint("fcn: " + fcn_name);
+          }
+        }
+         */
+
         apexDgGetBlockNodeInfo(apex_node, node);
         apex_function.nodes.push_back(apex_node);
       }
