@@ -95,7 +95,8 @@ private:
   void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
   void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
   void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
-  void apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg, bool print_graph);
+  void apexDgMakeGraph(APEXDependencyGraph &apex_dg);
+  void apexDgPrintGraph(APEXDependencyGraph &apex_dg);
 };
 
 /// Registering our own pass, so it can be ran via opt.

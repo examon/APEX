@@ -27,7 +27,8 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgPrintDataDependeniesCompact(apex_dg);
 
   // Make graph out of data dependencies.
-  apexDgMakeGraphPrint(apex_dg, true);
+  apexDgMakeGraph(apex_dg);
+  apexDgPrintGraph(apex_dg);
 
   // This is user input.
   // TODO: move this out
@@ -44,11 +45,54 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path, _SOURCE, _TARGET);
 
-  /* TODO: this needs to be redone with info from apex_dg */
-  // Recursively add all called functions to the @path.
+  // TODO: THIS IS WIP
   logPrintUnderline("Calculating what functions to add into @path");
   functionVectorFlatPrint(path);
+  Instruction *x_call_inst = nullptr;
+  {
+    for (auto &node_dependencies : apex_dg.node_data_dependencies_map) {
+      Value *node_val = node_dependencies.first->getValue();
+      if (isa<CallInst>(node_val)) {
+        CallInst *call_inst = cast<CallInst>(node_val);
+        Function *called_fcn = call_inst->getCalledFunction();
+        std::string called_fcn_name = called_fcn->getName();
+        logPrintFlat("IS CALL INST TO: " + called_fcn_name + ":");
+        if (called_fcn_name == "x") {
+          x_call_inst = call_inst;
+        }
+      }
+      node_val->dump();
+    }
+  }
+  {
+    logPrintUnderline("TESTING");
+    x_call_inst->dump();
+    Function *source_fcn = M.getFunction(_SOURCE);
+    source_fcn->dump();
+    logPrint("I print");
+    for (auto &BB : *source_fcn) {
+      for (auto &I : BB) {
+        if (isa<CallInst>(I)) {
+          CallInst *call_inst = cast<CallInst>(&I);
+          Function *called_fcn = call_inst->getCalledFunction();
+          std::string called_fcn_name = called_fcn->getName();
+          if (called_fcn_name == "x") {
+            logPrint("x_call_inst");
+            x_call_inst->dump();
+            logPrint("I");
+            I.dump();
+            if (x_call_inst == &I) {
+              logPrint("they are the same!");
+            } else {
+              logPrint("they are not the same?");
+            }
+          }
+        }
+      }
+    }
+  }
 
+  // TODO: this is probably outdated and will need modification
   /*
   logPrintUnderline("Adding functions to @path.");
   std::vector<Function *> functions_to_process = path;
@@ -462,7 +506,8 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
 
         // TODO: Need to figure out if any function from @path has dependencies
         //       and if those dependencies contain other function calls. If they
-        //       do, add those called functions into @path and recursively repeat.
+        //       do, add those called functions into @path and recursively
+        //       repeat.
         if (isa<CallInst>(apex_node.value)) {
           logPrint("is a call inst");
         } else {
@@ -612,10 +657,7 @@ void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
 
 /// Takes apex_dg, makes graph out of data dependencies between nodes
 /// and stores this graph into apex_dg.graph variable.
-///
-/// If print == true, also prints the constructed graph.
-void APEXPass::apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg,
-                                    bool print_graph) {
+void APEXPass::apexDgMakeGraph(APEXDependencyGraph &apex_dg) {
   logPrintUnderline("apexDgMakeGraph(): building data dependencies graph");
 
   for (APEXDependencyFunction &f : apex_dg.functions) {
@@ -625,18 +667,17 @@ void APEXPass::apexDgMakeGraphPrint(APEXDependencyGraph &apex_dg,
     }
   }
   logPrint(" - done");
+}
 
-  if (false == print_graph) {
-    return;
-  }
-
-  logPrint("");
+/// Prints node_data_dependencies_map from the apex_dg structure.
+void APEXPass::apexDgPrintGraph(APEXDependencyGraph &apex_dg) {
+  logPrintUnderline("apexDgPrintGraph(): ");
   for (auto &node_dependencies : apex_dg.node_data_dependencies_map) {
     errs() << "KEY: " << node_dependencies.first << "\n";
     node_dependencies.first->getValue()->dump();
-    StringRef name =
+    StringRef fcn_name =
         apex_dg.node_function_map[node_dependencies.first]->value->getName();
-    errs() << "IN FCN: " << name << "\n";
+    errs() << "IN FCN: " << fcn_name << "\n";
     logPrint("");
     for (LLVMNode *dd : node_dependencies.second) {
       errs() << "    *** " << dd << "\n";

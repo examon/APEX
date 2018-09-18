@@ -76,8 +76,11 @@ void \textbf{ apex\+Dg\+Print} (\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&apex\+
 \mbox{\label{classAPEXPass_ad6dfc083ac1a01b0224af4ae6b69163e}} 
 void \textbf{ apex\+Dg\+Print\+Data\+Dependenies\+Compact} (\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&apex\+\_\+dg)
 \begin{DoxyCompactList}\small\item\em Pretty prints apex\+\_\+dg, but only with data dependencies. \end{DoxyCompactList}\item 
-void \textbf{ apex\+Dg\+Make\+Graph\+Print} (\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&apex\+\_\+dg, bool print\+\_\+graph)
-\begin{DoxyCompactList}\small\item\em Takes apex\+\_\+dg, makes graph out of data dependencies between nodes and stores this graph into apex\+\_\+dg.\+graph variable. \end{DoxyCompactList}\end{DoxyCompactItemize}
+void \textbf{ apex\+Dg\+Make\+Graph} (\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&apex\+\_\+dg)
+\begin{DoxyCompactList}\small\item\em Takes apex\+\_\+dg, makes graph out of data dependencies between nodes and stores this graph into apex\+\_\+dg.\+graph variable. \end{DoxyCompactList}\item 
+\mbox{\label{classAPEXPass_a6846335175b30ceff2d5aeaac59eeac8}} 
+void \textbf{ apex\+Dg\+Print\+Graph} (\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&apex\+\_\+dg)
+\begin{DoxyCompactList}\small\item\em Prints node\+\_\+data\+\_\+dependencies\+\_\+map from the apex\+\_\+dg structure. \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \subsection{Detailed Description}
@@ -100,7 +103,7 @@ Stores control/reverse\+\_\+control/data/reverse\+\_\+data dependencies of the n
 
 
 
-Definition at line 490 of file apex.\+cpp.
+Definition at line 542 of file apex.\+cpp.
 
 
 
@@ -118,7 +121,7 @@ Extracts data from dg and stores them into apex\+\_\+dg structure.
 
 Caution\+: \doxyref{dg\+Init()}{p.}{classAPEXPass_a960948a62a5a07ac11caaaf3de4ceb77} has to be called before \doxyref{apex\+Dg\+Init()}{p.}{classAPEXPass_af2ba08d10f4e4d1c387ac4741d876467}, dg needs to be initialized in for this to properly work -\/$>$ CF map will be empty 
 
-Definition at line 444 of file apex.\+cpp.
+Definition at line 491 of file apex.\+cpp.
 
 
 
@@ -128,19 +131,19 @@ References apex\+Dg\+Get\+Block\+Node\+Info(), log\+Print(), and log\+Print\+Und
 
 Referenced by run\+On\+Module().
 
-\mbox{\label{classAPEXPass_aff27db39f78412b6eb5977d93b12db8a}} 
-\index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!apex\+Dg\+Make\+Graph\+Print@{apex\+Dg\+Make\+Graph\+Print}}
-\index{apex\+Dg\+Make\+Graph\+Print@{apex\+Dg\+Make\+Graph\+Print}!A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}}
-\subsubsection{apex\+Dg\+Make\+Graph\+Print()}
-{\footnotesize\ttfamily void A\+P\+E\+X\+Pass\+::apex\+Dg\+Make\+Graph\+Print (\begin{DoxyParamCaption}\item[{\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&}]{apex\+\_\+dg,  }\item[{bool}]{print\+\_\+graph }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+\mbox{\label{classAPEXPass_acb88e55dc8b0a8601bed3e1f5cf1f61c}} 
+\index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!apex\+Dg\+Make\+Graph@{apex\+Dg\+Make\+Graph}}
+\index{apex\+Dg\+Make\+Graph@{apex\+Dg\+Make\+Graph}!A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}}
+\subsubsection{apex\+Dg\+Make\+Graph()}
+{\footnotesize\ttfamily void A\+P\+E\+X\+Pass\+::apex\+Dg\+Make\+Graph (\begin{DoxyParamCaption}\item[{\textbf{ A\+P\+E\+X\+Dependency\+Graph} \&}]{apex\+\_\+dg }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
 
 
 
 Takes apex\+\_\+dg, makes graph out of data dependencies between nodes and stores this graph into apex\+\_\+dg.\+graph variable. 
 
-If print == true, also prints the constructed graph. 
 
-Definition at line 613 of file apex.\+cpp.
+
+Definition at line 663 of file apex.\+cpp.
 
 
 
@@ -164,7 +167,7 @@ Callgraph is saved in vector callgraph in the pairs of the following format\+: $
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 281 of file apex.\+cpp.
+Definition at line 328 of file apex.\+cpp.
 
 
 
@@ -188,7 +191,7 @@ Result is stored in the final\+\_\+path vector.
 
 Returns\+: 0 in success, -\/1 if error. 
 
-Definition at line 347 of file apex.\+cpp.
+Definition at line 394 of file apex.\+cpp.
 
 
 
@@ -210,7 +213,7 @@ Collects functions that are called by function F into vector callees.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 251 of file apex.\+cpp.
+Definition at line 298 of file apex.\+cpp.
 
 
 
@@ -232,7 +235,7 @@ Collects functions that call function F into vector callers.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 227 of file apex.\+cpp.
+Definition at line 274 of file apex.\+cpp.
 
 \mbox{\label{classAPEXPass_aa31ca4e0ca4bcc00e6352e01b59a320d}} 
 \index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!function\+Remove@{function\+Remove}}
@@ -246,7 +249,7 @@ Takes pointer to a function F, removes all calls to this function and then remov
 
 Returns\+: 0 if successful or -\/1 in case of error. 
 
-Definition at line 202 of file apex.\+cpp.
+Definition at line 249 of file apex.\+cpp.
 
 
 
@@ -268,7 +271,7 @@ Takes pointer to function F, iterates over instructions calling this function an
 
 Returns\+: number of removed instructions, -\/1 in case of error. 
 
-Definition at line 163 of file apex.\+cpp.
+Definition at line 210 of file apex.\+cpp.
 
 
 
