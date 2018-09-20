@@ -103,7 +103,7 @@ Stores control/reverse\+\_\+control/data/reverse\+\_\+data dependencies of the n
 
 
 
-Definition at line 542 of file apex.\+cpp.
+Definition at line 512 of file apex.\+cpp.
 
 
 
@@ -121,7 +121,7 @@ Extracts data from dg and stores them into apex\+\_\+dg structure.
 
 Caution\+: \doxyref{dg\+Init()}{p.}{classAPEXPass_a960948a62a5a07ac11caaaf3de4ceb77} has to be called before \doxyref{apex\+Dg\+Init()}{p.}{classAPEXPass_af2ba08d10f4e4d1c387ac4741d876467}, dg needs to be initialized in for this to properly work -\/$>$ CF map will be empty 
 
-Definition at line 491 of file apex.\+cpp.
+Definition at line 461 of file apex.\+cpp.
 
 
 
@@ -143,7 +143,7 @@ Takes apex\+\_\+dg, makes graph out of data dependencies between nodes and store
 
 
 
-Definition at line 663 of file apex.\+cpp.
+Definition at line 633 of file apex.\+cpp.
 
 
 
@@ -167,7 +167,7 @@ Callgraph is saved in vector callgraph in the pairs of the following format\+: $
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 328 of file apex.\+cpp.
+Definition at line 298 of file apex.\+cpp.
 
 
 
@@ -191,7 +191,7 @@ Result is stored in the final\+\_\+path vector.
 
 Returns\+: 0 in success, -\/1 if error. 
 
-Definition at line 394 of file apex.\+cpp.
+Definition at line 364 of file apex.\+cpp.
 
 
 
@@ -213,7 +213,7 @@ Collects functions that are called by function F into vector callees.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 298 of file apex.\+cpp.
+Definition at line 268 of file apex.\+cpp.
 
 
 
@@ -235,7 +235,7 @@ Collects functions that call function F into vector callers.
 
 Returns\+: 0 in case of success, -\/1 if error. 
 
-Definition at line 274 of file apex.\+cpp.
+Definition at line 244 of file apex.\+cpp.
 
 \mbox{\label{classAPEXPass_aa31ca4e0ca4bcc00e6352e01b59a320d}} 
 \index{A\+P\+E\+X\+Pass@{A\+P\+E\+X\+Pass}!function\+Remove@{function\+Remove}}
@@ -249,7 +249,7 @@ Takes pointer to a function F, removes all calls to this function and then remov
 
 Returns\+: 0 if successful or -\/1 in case of error. 
 
-Definition at line 249 of file apex.\+cpp.
+Definition at line 221 of file apex.\+cpp.
 
 
 
@@ -271,7 +271,7 @@ Takes pointer to function F, iterates over instructions calling this function an
 
 Returns\+: number of removed instructions, -\/1 in case of error. 
 
-Definition at line 210 of file apex.\+cpp.
+Definition at line 182 of file apex.\+cpp.
 
 
 

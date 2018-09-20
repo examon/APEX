@@ -188,9 +188,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 
 <p>Stores control/reverse_control/data/reverse_data dependencies of the node to the apex_node. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00542">542</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00512">512</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00491">apexDgInit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00461">apexDgInit()</a>.</p>
 
 </div>
 </div>
@@ -221,9 +221,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Extracts data from dg and stores them into apex_dg structure. </p>
 <p>Caution: <a class="el" href="classAPEXPass.html#a960948a62a5a07ac11caaaf3de4ceb77" title="Initializes dg and calculates control &amp; data dependencies. ">dgInit()</a> has to be called before <a class="el" href="classAPEXPass.html#af2ba08d10f4e4d1c387ac4741d876467" title="Extracts data from dg and stores them into apex_dg structure. ">apexDgInit()</a>, dg needs to be initialized in for this to properly work -&gt; CF map will be empty </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00491">491</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00461">461</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00542">apexDgGetBlockNodeInfo()</a>, <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00172">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00512">apexDgGetBlockNodeInfo()</a>, <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
 
@@ -255,9 +255,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 
 <p>Takes apex_dg, makes graph out of data dependencies between nodes and stores this graph into apex_dg.graph variable. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00663">663</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00633">633</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00172">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
 
@@ -307,9 +307,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Callgraph is saved in vector callgraph in the pairs of the following format: &lt;caller function, vector of called functions&gt;.</p>
 <p>Returns: 0 in case of success, -1 if error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00328">328</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00298">298</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00298">functionGetCallees()</a>, <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00172">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00268">functionGetCallees()</a>, <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
 
@@ -365,9 +365,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Result is stored in the final_path vector.</p>
 <p>Returns: 0 in success, -1 if error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00394">394</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00364">364</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00172">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
 
@@ -410,11 +410,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Collects functions that are called by function F into vector callees. </p>
 <p>Returns: 0 in case of success, -1 if error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00298">298</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00268">268</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00328">createCallGraph()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00298">createCallGraph()</a>.</p>
 
 </div>
 </div>
@@ -455,7 +455,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Collects functions that call function F into vector callers. </p>
 <p>Returns: 0 in case of success, -1 if error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00274">274</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00244">244</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
 </div>
 </div>
@@ -486,9 +486,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Takes pointer to a function F, removes all calls to this function and then removes function F itself. </p>
 <p>Returns: 0 if successful or -1 in case of error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00249">249</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00221">221</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00210">functionRemoveCalls()</a>, and <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00182">functionRemoveCalls()</a>, and <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
 
@@ -521,11 +521,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Takes pointer to function F, iterates over instructions calling this function and removes these instructions. </p>
 <p>Returns: number of removed instructions, -1 in case of error. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00210">210</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00182">182</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00167">logPrint()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00249">functionRemove()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00221">functionRemove()</a>.</p>
 
 </div>
 </div>

@@ -30,8 +30,7 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgMakeGraph(apex_dg);
   apexDgPrintGraph(apex_dg);
 
-  // This is user input.
-  // TODO: move this out
+  // TODO: This is user input. Move this to the script that calls APEXPass.
   std::string _SOURCE = "main";
   std::string _TARGET = "x";
 
@@ -45,7 +44,8 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(callgraph, _SOURCE, _TARGET, path);
   printPath(path, _SOURCE, _TARGET);
 
-  // TODO: THIS IS WIP
+  // TODO: Everything below this line is WIP and should be refactored.
+
   logPrintUnderline("Calculating what functions to add into @path");
   functionVectorFlatPrint(path);
   Instruction *x_call_inst = nullptr;
@@ -64,8 +64,10 @@ bool APEXPass::runOnModule(Module &M) {
       node_val->dump();
     }
   }
+
+  logPrintUnderline("TESTING");
+  // TODO: Add functions you want to remain into @path.
   {
-    logPrintUnderline("TESTING");
     x_call_inst->dump();
     Function *source_fcn = M.getFunction(_SOURCE);
     source_fcn->dump();
@@ -92,41 +94,6 @@ bool APEXPass::runOnModule(Module &M) {
     }
   }
 
-  // TODO: this is probably outdated and will need modification
-  /*
-  logPrintUnderline("Adding functions to @path.");
-  std::vector<Function *> functions_to_process = path;
-  while (false == functions_to_process.empty()) {
-    logPrintFlat("current path: ");
-    functionVectorFlatPrint(path);
-    logPrintFlat("functions to process: ");
-    functionVectorFlatPrint(functions_to_process);
-
-    const Function *current = functions_to_process.back();
-    functions_to_process.pop_back();
-    logPrint("- currently examining: " + current->getGlobalIdentifier());
-
-    std::vector<Function *> current_callees;
-    functionGetCallees(current, current_callees);
-
-    for (auto &callee : current_callees) {
-      bool calee_to_be_processed = true;
-      for (auto &path_fcn : path) {
-        if (callee->getGlobalIdentifier() == path_fcn->getGlobalIdentifier()) {
-          calee_to_be_processed = false;
-        }
-      }
-      if (true == calee_to_be_processed) {
-        functions_to_process.push_back(callee);
-        path.push_back(callee);
-        logPrint("  - adding: " + callee->getGlobalIdentifier());
-      }
-    }
-    logPrint("");
-  }
-  */
-
-  // Remove functions that do not affect calculated execution @path.
   logPrintUnderline("Removing functions that do not affect @path.");
   std::vector<Function *> functions_to_be_removed;
   { // Collect functions from module that will be removed
@@ -143,18 +110,28 @@ bool APEXPass::runOnModule(Module &M) {
         functions_to_be_removed.push_back(&module_fcn);
       }
     }
+
+    logPrintFlat("                   path: ");
+    functionVectorFlatPrint(path);
+    logPrintFlat("functions_to_be_removed: ");
+    functionVectorFlatPrint(functions_to_be_removed);
   }
-  { // Remove collected functions.
+
+  logPrintUnderline("Removing collected functions.");
+  {
     for (auto &fcn : functions_to_be_removed) {
-      logPrint(fcn->getName());
       if (functionRemove(fcn) < 0) {
         logPrint("[ERROR] Aborting. Was about to remove non-void returning "
                  "function!");
-        return true;
+        goto apex_end;
+        //        return true;
       }
     }
   }
 
+// I know... I like it and I don't care!
+apex_end:
+  logPrintUnderline("APEXPass END");
   return true;
 }
 
@@ -249,7 +226,7 @@ int APEXPass::functionRemove(Function *F) {
   }
   std::string fcn_id = F->getGlobalIdentifier();
 
-  logPrint("======= [to remove function: " + fcn_id + "] =======");
+  logPrint("functionRemove(): " + fcn_id);
 
   if (functionRemoveCalls(F) < 0) {
     return -1;
@@ -260,8 +237,6 @@ int APEXPass::functionRemove(Function *F) {
   logPrint(message);
 
   F->eraseFromParent();
-
-  logPrint("======= [to remove function: " + fcn_id + "] =======\n");
   return 0;
 }
 
