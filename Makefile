@@ -1,6 +1,8 @@
 run:
-	doxygen Doxyfile
 	./build_and_run.sh
+
+doc:
+	doxygen Doxyfile
 
 clean:
 	rm -rf apex/build
