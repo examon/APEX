@@ -4,18 +4,18 @@ int x(void) {
   return 10;
 }
 
-int y(int n) {
-  return n;
+void y(int n) {
+  int tmp = n+n;
 }
 
-int z(void) {
-  return 20;
+void z(void) {
+  int tmp = 1;
 }
 
 int main(void) {
   int x_ret = x();
   y(x_ret);
 
-  int z_ret = z();
+  z();
   return 0;
 }
