@@ -46,8 +46,8 @@ bool APEXPass::runOnModule(Module &M) {
 
   // TODO: Everything below this line is WIP and should be refactored.
 
-  logPrintUnderline("Calculating what functions to add into @path");
-  functionVectorFlatPrint(path);
+  /*
+  // Iterate over nodes:dependencies map and prints if node is call instruction.
   Instruction *x_call_inst = nullptr;
   {
     for (auto &node_dependencies : apex_dg.node_data_dependencies_map) {
@@ -64,10 +64,54 @@ bool APEXPass::runOnModule(Module &M) {
       node_val->dump();
     }
   }
+  */
 
-  logPrintUnderline("TESTING");
+  logPrintUnderline("Calculating and possibly adding dependencies to @path.");
   // TODO: Add functions you want to remain into @path.
   {
+    // Make list out of path, so we can have pop_front().
+    std::list<Function *> invesigation_list(path.begin(), path.end());
+
+    while (false == invesigation_list.empty()) {
+      logPrintFlat("investigation_list: ");
+      functionListFlatPrint(invesigation_list);
+
+      // Take front element from @path and investiate dependencies.
+      Function *current_fcn = invesigation_list.front();
+      invesigation_list.pop_front();
+      std::string f_name = current_fcn->getName();
+      logPrint("investigating: " + f_name);
+
+      // Investigate dependencies.
+      for (auto &BB : *current_fcn) {
+        for (auto &I : BB) {
+          // Go over call instructions.
+          if (isa<CallInst>(I)) {
+            CallInst *call_inst = cast<CallInst>(&I);
+            Function *called_fcn = call_inst->getCalledFunction();
+            std::string called_fcn_name = called_fcn->getName();
+            logPrint("- " + f_name + " is calling: " + called_fcn_name);
+
+            for (Function *path_function : path) {
+              if (called_fcn == path_function) {
+                // Ok, so @current_fcn is calling "something" that is in @path.
+                logPrint("-- " + called_fcn_name + " is in @path");
+                // Now, investigate if "something" has some data dependencies
+                // (that are function calls), and add those potential function
+                // calls to the path.
+                // TODO
+              }
+            }
+          }
+        }
+      }
+
+      // Possibly add to @path?
+
+      logPrint("\n");
+    }
+
+    /*
     x_call_inst->dump();
     Function *source_fcn = M.getFunction(_SOURCE);
     source_fcn->dump();
@@ -92,12 +136,13 @@ bool APEXPass::runOnModule(Module &M) {
         }
       }
     }
+    */
   }
 
   logPrintUnderline("Removing functions that do not affect @path.");
   std::vector<Function *> functions_to_be_removed;
-  { // Collect functions from module that will be removed
-    // (functions that are not in the @path vector).
+  { // Collect functions from module that will be removed,
+    // that is functions that are not in the @path vector.
     for (auto &module_fcn : M.getFunctionList()) {
       bool module_fcn_to_be_removed = true;
       for (Function *path_fcn : path) {
@@ -124,7 +169,6 @@ bool APEXPass::runOnModule(Module &M) {
         logPrint("[ERROR] Aborting. Was about to remove non-void returning "
                  "function!");
         goto apex_end;
-        //        return true;
       }
     }
   }
@@ -170,6 +214,14 @@ void APEXPass::logDumpModule(const Module &M) {
 /// Prints contents of the vector functions.
 void APEXPass::functionVectorFlatPrint(
     const std::vector<Function *> &functions) {
+  for (const Function *function : functions) {
+    logPrintFlat(function->getGlobalIdentifier() + ", ");
+  }
+  logPrint("");
+}
+
+/// Prints contents of the vector functions.
+void APEXPass::functionListFlatPrint(const std::list<Function *> &functions) {
   for (const Function *function : functions) {
     logPrintFlat(function->getGlobalIdentifier() + ", ");
   }
@@ -237,6 +289,7 @@ int APEXPass::functionRemove(Function *F) {
   logPrint(message);
 
   F->eraseFromParent();
+  logPrint("- done\n");
   return 0;
 }
 

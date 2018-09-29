@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -68,6 +69,7 @@ private:
 
   // Function utilities.
   void functionVectorFlatPrint(const std::vector<Function *> &functions);
+  void functionListFlatPrint(const std::list<Function *> &functions);
   int functionRemoveCalls(const Function *F);
   int functionRemove(Function *F);
   int functionGetCallers(const Function *F, std::vector<Function *> &callers);
