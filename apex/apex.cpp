@@ -73,33 +73,80 @@ bool APEXPass::runOnModule(Module &M) {
     std::list<Function *> invesigation_list(path.begin(), path.end());
 
     while (false == invesigation_list.empty()) {
+      logPrintFlat("path: ");
+      functionVectorFlatPrint(path);
+
       logPrintFlat("investigation_list: ");
       functionListFlatPrint(invesigation_list);
 
       // Take front element from @path and investiate dependencies.
       Function *current_fcn = invesigation_list.front();
       invesigation_list.pop_front();
-      std::string f_name = current_fcn->getName();
-      logPrint("investigating: " + f_name);
+      std::string current_fcn_name = current_fcn->getName();
+      logPrint("investigating: " + current_fcn_name);
 
-      // Investigate dependencies.
+      // Iterate over @current_fcn instructions
       for (auto &BB : *current_fcn) {
         for (auto &I : BB) {
-          // Go over call instructions.
-          if (isa<CallInst>(I)) {
-            CallInst *call_inst = cast<CallInst>(&I);
-            Function *called_fcn = call_inst->getCalledFunction();
-            std::string called_fcn_name = called_fcn->getName();
-            logPrint("- " + f_name + " is calling: " + called_fcn_name);
 
-            for (Function *path_function : path) {
-              if (called_fcn == path_function) {
-                // Ok, so @current_fcn is calling "something" that is in @path.
-                logPrint("-- " + called_fcn_name + " is in @path");
-                // Now, investigate if "something" has some data dependencies
-                // (that are function calls), and add those potential function
-                // calls to the path.
-                // TODO
+          // We care only about call instructions.
+          if (false == isa<CallInst>(I)) {
+            continue;
+          }
+
+          // Ok, @I is call instruction.
+          CallInst *call_inst = cast<CallInst>(&I);
+          Function *called_fcn = call_inst->getCalledFunction();
+
+          std::string called_fcn_name = called_fcn->getName();
+          logPrint("- " + current_fcn_name + " is calling: " + called_fcn_name);
+
+          for (Function *path_function : path) {
+            if (called_fcn != path_function) {
+              continue;
+            }
+            // Ok, so @current_fcn is calling @called_fcn and @called_fcn
+            // is also in @path.
+
+            logPrint("-- " + called_fcn_name + " is in @path");
+            // Now, investigate if call to @called_fcn has some data
+            // dependencies (that are function calls), and add those
+            // potential function calls to the path, so the function
+            // that is going to be called is not removed.
+
+            // Figure out which APEXDependencyFunction in @apex_dg is
+            // @current_fcn.
+            for (APEXDependencyFunction &apex_dg_fcn : apex_dg.functions) {
+              std::string apex_dg_fcn_name = apex_dg_fcn.value->getName();
+              if (current_fcn_name != apex_dg_fcn_name) {
+                continue;
+              }
+
+              // We have our APEXDependencyFunction.
+              // Now we need to find wnich node (AKA instruction) is calling
+              // @called_fcn.
+              for (APEXDependencyNode &node : apex_dg_fcn.nodes) {
+                // We are only about call instructions.
+                if (false == isa<CallInst>(node.value)) {
+                  continue;
+                }
+
+                // Ok, so @node.value is some call instruction. Now figure out
+                // if it is the one that calls @called_fcn.
+                CallInst *node_inst = cast<CallInst>(node.value);
+                Function *node_called_fcn = node_inst->getCalledFunction();
+                if (node_called_fcn == called_fcn) {
+                  // Amazing, we have instruction that is calling @called_fcn.
+                  // Now check if this instruction has dependencies.
+                  // TODO
+                  for (auto n : apex_dg.node_data_dependencies_map) {
+                    if (n.first->getValue() == node.value) {
+                      node.value->dump();
+                      // TODO: @n.first is LLVMNode * that we want
+                      // TODO: now traverse its dependencies and see
+                    }
+                  }
+                }
               }
             }
           }
