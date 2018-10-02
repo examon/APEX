@@ -126,7 +126,7 @@ bool APEXPass::runOnModule(Module &M) {
               // Now we need to find wnich node (AKA instruction) is calling
               // @called_fcn.
               for (APEXDependencyNode &node : apex_dg_fcn.nodes) {
-                // We are only about call instructions.
+                // We care only about call instructions.
                 if (false == isa<CallInst>(node.value)) {
                   continue;
                 }
@@ -135,15 +135,50 @@ bool APEXPass::runOnModule(Module &M) {
                 // if it is the one that calls @called_fcn.
                 CallInst *node_inst = cast<CallInst>(node.value);
                 Function *node_called_fcn = node_inst->getCalledFunction();
-                if (node_called_fcn == called_fcn) {
-                  // Amazing, we have instruction that is calling @called_fcn.
-                  // Now check if this instruction has dependencies.
-                  // TODO
-                  for (auto n : apex_dg.node_data_dependencies_map) {
-                    if (n.first->getValue() == node.value) {
-                      node.value->dump();
-                      // TODO: @n.first is LLVMNode * that we want
-                      // TODO: now traverse its dependencies and see
+                if (node_called_fcn != called_fcn) {
+                  continue;
+                }
+
+                // Amazing, we have instruction that is calling @called_fcn.
+                // Now check if this instruction has dependencies.
+                for (auto n : apex_dg.node_data_dependencies_map) {
+                  if (n.first->getValue() == node.value) {
+                    // @n.first is LLVMNode * that we want
+                    LLVMNode *head = n.first;
+                    head->getValue()->dump();
+
+                    // Run BFS to traverse dependencies and see if there is
+                    // among them some function call.
+                    std::vector<LLVMNode *> queue;
+                    queue.push_back(head);
+                    while (false == queue.empty()) {
+                      // Pop @current and investigate it first.
+                      LLVMNode *curr = queue.back();
+                      queue.pop_back();
+
+                      Value *curr_val = curr->getValue();
+                      if (isa<CallInst>(curr_val)) {
+                        // OK, we have found function call that is a data
+                        // dependency for @node.
+                        CallInst *curr_call_inst = cast<CallInst>(curr_val);
+                        Function *curr_fcn =
+                            curr_call_inst->getCalledFunction();
+                        // Add this function to the @path (if it is not already
+                        // there).
+                        // TODO do name based find
+                        if (std::find(path.begin(), path.end(), curr_fcn) !=
+                            path.end()) {
+                          path.push_back(curr_fcn);
+                          logPrint("ADDING TO THE PATH: ");
+                          curr_call_inst->dump();
+                        }
+                      }
+
+                      // Add neighbours to the queue.
+                      for (LLVMNode *neighbor :
+                           apex_dg.node_data_dependencies_map[curr]) {
+                        queue.push_back(neighbor);
+                      }
                     }
                   }
                 }
@@ -152,38 +187,8 @@ bool APEXPass::runOnModule(Module &M) {
           }
         }
       }
-
-      // Possibly add to @path?
-
       logPrint("\n");
     }
-
-    /*
-    x_call_inst->dump();
-    Function *source_fcn = M.getFunction(_SOURCE);
-    source_fcn->dump();
-    logPrint("I print");
-    for (auto &BB : *source_fcn) {
-      for (auto &I : BB) {
-        if (isa<CallInst>(I)) {
-          CallInst *call_inst = cast<CallInst>(&I);
-          Function *called_fcn = call_inst->getCalledFunction();
-          std::string called_fcn_name = called_fcn->getName();
-          if (called_fcn_name == "x") {
-            logPrint("x_call_inst");
-            x_call_inst->dump();
-            logPrint("I");
-            I.dump();
-            if (x_call_inst == &I) {
-              logPrint("they are the same!");
-            } else {
-              logPrint("they are not the same?");
-            }
-          }
-        }
-      }
-    }
-    */
   }
 
   logPrintUnderline("Removing functions that do not affect @path.");
