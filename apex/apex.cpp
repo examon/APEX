@@ -101,6 +101,7 @@ bool APEXPass::runOnModule(Module &M) {
           std::string called_fcn_name = called_fcn->getName();
           logPrint("- " + current_fcn_name + " is calling: " + called_fcn_name);
 
+          // Dependencies resolution for @I from here.
           for (Function *path_function : path) {
             if (called_fcn != path_function) {
               continue;
@@ -145,7 +146,6 @@ bool APEXPass::runOnModule(Module &M) {
                   if (n.first->getValue() == node.value) {
                     // @n.first is LLVMNode * that we want
                     LLVMNode *head = n.first;
-                    head->getValue()->dump();
 
                     // Run BFS to traverse dependencies and see if there is
                     // among them some function call.
@@ -163,14 +163,24 @@ bool APEXPass::runOnModule(Module &M) {
                         CallInst *curr_call_inst = cast<CallInst>(curr_val);
                         Function *curr_fcn =
                             curr_call_inst->getCalledFunction();
+                        std::string curr_fcn_name = curr_fcn->getName();
                         // Add this function to the @path (if it is not already
                         // there).
-                        // TODO do name based find
-                        if (std::find(path.begin(), path.end(), curr_fcn) !=
-                            path.end()) {
+                        logPrint("this stuff");
+                        curr_val->dump();
+                        logPrint("is calling: " + curr_fcn_name);
+                        bool curr_fcn_in_path = false;
+                        for (Function *path_fcn : path) {
+                          std::string path_fcn_name = path_fcn->getName();
+                          if (curr_fcn_name == path_fcn_name) {
+                            curr_fcn_in_path = true;
+                            logPrint("curr_fcn: " + curr_fcn_name +
+                                     ", is in path already!");
+                          }
+                        }
+                        if (false == curr_fcn_in_path) {
+                          logPrint("pushing: " + curr_fcn_name + " to path");
                           path.push_back(curr_fcn);
-                          logPrint("ADDING TO THE PATH: ");
-                          curr_call_inst->dump();
                         }
                       }
 
