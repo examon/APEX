@@ -30,19 +30,16 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgMakeGraph(apex_dg);
   apexDgPrintGraph(apex_dg);
 
-  // TODO: This is user input. Move this to the script that calls APEXPass.
-  std::string _SOURCE = "main";
-  std::string _TARGET = "x";
-
   // Create call graph from module.
+
   std::vector<std::pair<Function *, std::vector<Function *>>> callgraph;
-  createCallGraph(M, _SOURCE, callgraph);
+  createCallGraph(M, ARG_SOURCE_FCN, callgraph);
   printCallGraph(callgraph);
 
   // Find path from @source to @target in the @callgraph.
   std::vector<Function *> path;
-  findPath(callgraph, _SOURCE, _TARGET, path);
-  printPath(path, _SOURCE, _TARGET);
+  findPath(callgraph, ARG_SOURCE_FCN, ARG_TARGET_FCN, path);
+  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
 
   // TODO: Everything below this line is WIP and should be refactored.
 

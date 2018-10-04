@@ -14,10 +14,10 @@
 #include <vector>
 
 #include <llvm/Analysis/CallGraph.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
-
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 // We need this for dg integration.
 #include "analysis/PointsTo/PointsToFlowInsensitive.h"
@@ -28,6 +28,15 @@ using namespace llvm;
 using namespace dg;
 
 bool _LOG_VERBOSE = true;
+
+/// Command line arguments for opt.
+cl::opt<std::string> ARG_SOURCE_FCN("source",
+                                    cl::desc("Specify source function."),
+                                    cl::value_desc("function name"));
+
+cl::opt<std::string> ARG_TARGET_FCN("target",
+                                    cl::desc("Specify target function."),
+                                    cl::value_desc("function name"));
 
 /// Node is usually line instruction of IR. Sometimes whole function.
 struct APEXDependencyNode {
