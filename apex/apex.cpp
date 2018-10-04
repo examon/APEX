@@ -43,28 +43,7 @@ bool APEXPass::runOnModule(Module &M) {
 
   // TODO: Everything below this line is WIP and should be refactored.
 
-  /*
-  // Iterate over nodes:dependencies map and prints if node is call instruction.
-  Instruction *x_call_inst = nullptr;
-  {
-    for (auto &node_dependencies : apex_dg.node_data_dependencies_map) {
-      Value *node_val = node_dependencies.first->getValue();
-      if (isa<CallInst>(node_val)) {
-        CallInst *call_inst = cast<CallInst>(node_val);
-        Function *called_fcn = call_inst->getCalledFunction();
-        std::string called_fcn_name = called_fcn->getName();
-        logPrintFlat("IS CALL INST TO: " + called_fcn_name + ":");
-        if (called_fcn_name == "x") {
-          x_call_inst = call_inst;
-        }
-      }
-      node_val->dump();
-    }
-  }
-  */
-
   logPrintUnderline("Calculating and possibly adding dependencies to @path.");
-  // TODO: Add functions you want to remain into @path.
   {
     // Make list out of path, so we can have pop_front().
     std::list<Function *> invesigation_list(path.begin(), path.end());
@@ -557,7 +536,7 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
   dg.build(&M, pta);
   analysis::rd::LLVMReachingDefinitions rda(&M, pta);
   rda.run<analysis::rd::ReachingDefinitionsAnalysis>();
-  // rda.run<analysis::rd::SemisparseRda>(); // This is alternative to ^
+  // rda.run<analysis::rd::SemisparseRda>(); // This is alternative to above ^^
   LLVMDefUseAnalysis dua(&dg, &rda, pta);
   dua.run();
   dg.computeControlDependencies(CD_ALG::CLASSIC);
