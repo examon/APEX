@@ -116,58 +116,7 @@ bool APEXPass::runOnModule(Module &M) {
                   continue;
                 }
 
-                // Amazing, we have instruction that is calling @called_fcn.
-                // Now check if this instruction has dependencies.
-                for (auto n : apex_dg.node_data_dependencies_map) {
-                  if (n.first->getValue() == node.value) {
-                    // @n.first is LLVMNode * that we want
-                    LLVMNode *head = n.first;
-
-                    // Run BFS to traverse dependencies and see if there is
-                    // among them some function call.
-                    std::vector<LLVMNode *> queue;
-                    queue.push_back(head);
-                    while (false == queue.empty()) {
-                      // Pop @current and investigate it first.
-                      LLVMNode *curr = queue.back();
-                      queue.pop_back();
-
-                      Value *curr_val = curr->getValue();
-                      if (isa<CallInst>(curr_val)) {
-                        // OK, we have found function call that is a data
-                        // dependency for @node.
-                        CallInst *curr_call_inst = cast<CallInst>(curr_val);
-                        Function *curr_fcn =
-                            curr_call_inst->getCalledFunction();
-                        std::string curr_fcn_name = curr_fcn->getName();
-                        // Add this function to the @path (if it is not already
-                        // there).
-                        logPrint("this stuff");
-                        curr_val->dump();
-                        logPrint("is calling: " + curr_fcn_name);
-                        bool curr_fcn_in_path = false;
-                        for (Function *path_fcn : path) {
-                          std::string path_fcn_name = path_fcn->getName();
-                          if (curr_fcn_name == path_fcn_name) {
-                            curr_fcn_in_path = true;
-                            logPrint("curr_fcn: " + curr_fcn_name +
-                                     ", is in path already!");
-                          }
-                        }
-                        if (false == curr_fcn_in_path) {
-                          logPrint("pushing: " + curr_fcn_name + " to path");
-                          path.push_back(curr_fcn);
-                        }
-                      }
-
-                      // Add neighbours to the queue.
-                      for (LLVMNode *neighbor :
-                           apex_dg.node_data_dependencies_map[curr]) {
-                        queue.push_back(neighbor);
-                      }
-                    }
-                  }
-                }
+                apexDgNodeResolveDependencies(path, apex_dg, node);
               }
             }
           }
@@ -246,6 +195,7 @@ void APEXPass::logDumpModule(const Module &M) {
   M.dump();
   logPrint("");
 }
+
 
 // Function utilities ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -730,5 +680,65 @@ void APEXPass::apexDgPrintGraph(APEXDependencyGraph &apex_dg) {
       logPrint("");
     }
     logPrint("===");
+  }
+}
+
+// TODO: refactor this function
+/// Amazing, we have instruction that is calling @called_fcn.
+/// Now check if this instruction has dependencies.
+///
+/// If it has dependencies and any of those is function call
+/// that is not in the @path, add function that it calls to
+/// the path.
+void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
+                                          APEXDependencyGraph &apex_dg,
+                                          APEXDependencyNode &node) {
+  for (auto n : apex_dg.node_data_dependencies_map) {
+    if (n.first->getValue() == node.value) {
+      // @n.first is LLVMNode * that we want
+      LLVMNode *head = n.first;
+
+      // Run "BFS" to traverse dependencies and see if there is
+      // among them some function call.
+      // TODO: write propper BFS (with visited nodes checking and stuff).
+      std::vector<LLVMNode *> queue;
+      queue.push_back(head);
+      while (false == queue.empty()) {
+        // Pop @current and investigate it first.
+        LLVMNode *curr = queue.back();
+        queue.pop_back();
+
+        Value *curr_val = curr->getValue();
+        if (isa<CallInst>(curr_val)) {
+          // OK, we have found function call that is a data
+          // dependency for @node.
+          CallInst *curr_call_inst = cast<CallInst>(curr_val);
+          Function *curr_fcn = curr_call_inst->getCalledFunction();
+          std::string curr_fcn_name = curr_fcn->getName();
+          // Add this function to the @path (if it is not already
+          // there).
+          logPrint("this stuff");
+          curr_val->dump();
+          logPrint("is calling: " + curr_fcn_name);
+          bool curr_fcn_in_path = false;
+          for (Function *path_fcn : path) {
+            std::string path_fcn_name = path_fcn->getName();
+            if (curr_fcn_name == path_fcn_name) {
+              curr_fcn_in_path = true;
+              logPrint("curr_fcn: " + curr_fcn_name + ", is in path already!");
+            }
+          }
+          if (false == curr_fcn_in_path) {
+            logPrint("pushing: " + curr_fcn_name + " to path");
+            path.push_back(curr_fcn);
+          }
+        }
+
+        // Add neighbours to the queue.
+        for (LLVMNode *neighbor : apex_dg.node_data_dependencies_map[curr]) {
+          queue.push_back(neighbor);
+        }
+      }
+    }
   }
 }

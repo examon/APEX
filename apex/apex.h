@@ -76,6 +76,10 @@ private:
   void logPrintFlat(const std::string &message);
   void logDumpModule(const Module &M);
 
+  void apexDgNodeResolveDependencies(std::vector<Function *> &path,
+                                  APEXDependencyGraph &apex_dg,
+                                  APEXDependencyNode &node);
+
   // Function utilities.
   void functionVectorFlatPrint(const std::vector<Function *> &functions);
   void functionListFlatPrint(const std::list<Function *> &functions);
@@ -108,6 +112,9 @@ private:
   void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
   void apexDgMakeGraph(APEXDependencyGraph &apex_dg);
   void apexDgPrintGraph(APEXDependencyGraph &apex_dg);
+      void apexDgNodeResolveDependencies(std::vector<Function *> &path,
+                                  APEXDependencyGraph &apex_dg,
+                                  APEXDependencyNode &node);
 };
 
 /// Registering our own pass, so it can be ran via opt.
