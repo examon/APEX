@@ -591,27 +591,6 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
         apex_node.node = node;
         apex_node.value = node->getValue();
 
-        // TODO: Need to figure out if any function from @path has dependencies
-        //       and if those dependencies contain other function calls. If they
-        //       do, add those called functions into @path and recursively
-        //       repeat.
-        if (isa<CallInst>(apex_node.value)) {
-          logPrint("is a call inst");
-        } else {
-          logPrint("is not call inst");
-        }
-        /*
-        if (auto callinst = dyn_cast<CallInst>(&apex_node.value)) {
-          Function *called_fcn = callinst->getCalledFunction();
-          if (nullptr == called_fcn) {
-            logPrint("called_fcn is nullptr");
-          } else {
-            std::string fcn_name = called_fcn->getName();
-            logPrint("fcn: " + fcn_name);
-          }
-        }
-         */
-
         apexDgGetBlockNodeInfo(apex_node, node);
         apex_function.nodes.push_back(apex_node);
       }
