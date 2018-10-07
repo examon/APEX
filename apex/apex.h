@@ -111,6 +111,8 @@ private:
                                      const APEXDependencyNode &node);
   void apexDgResolveDependencies(std::vector<Function *> &path,
                                  APEXDependencyGraph &apex_dg);
+  void apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
+                                  std::vector<LLVMNode *> &dependencies);
 
   // Module utilities.
   void moduleRemoveFunctionsNotInPath(Module &M, std::vector<Function *> &path);

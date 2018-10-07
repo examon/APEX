@@ -8,14 +8,18 @@ void y(int n) {
   int tmp = n+n;
 }
 
-void z(void) {
+int z(void) {
   int tmp = 1;
+  return tmp;
 }
 
 int main(void) {
   int x_ret = x();
   y(x_ret);
 
-  z();
+  int z_ret = z();
+  int z_store = z_ret;
+  // TODO: Add fcn call to function that takes @z_store.
+
   return 0;
 }
