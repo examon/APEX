@@ -77,10 +77,12 @@ private:
   // Function utilities.
   void functionVectorFlatPrint(const std::vector<Function *> &functions);
   void functionListFlatPrint(const std::list<Function *> &functions);
-  int functionRemoveCalls(const Function *F);
-  int functionRemove(Function *F);
+  int functionRemoveCalls(APEXDependencyGraph &apex_dg, const Function *F);
+  int functionRemove(APEXDependencyGraph &apex_dg, Function *F);
   int functionGetCallers(const Function *F, std::vector<Function *> &callers);
   int functionGetCallees(const Function *F, std::vector<Function *> &callees);
+  void functionRemoveDependencies(APEXDependencyGraph &apex_dg,
+                                  std::string function_name);
 
   // Callgraph utilities.
   int createCallGraph(
@@ -115,7 +117,8 @@ private:
                                   std::vector<LLVMNode *> &dependencies);
 
   // Module utilities.
-  void moduleRemoveFunctionsNotInPath(Module &M, std::vector<Function *> &path);
+  void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
+                                      std::vector<Function *> &path);
 };
 
 /// Registering our own pass, so it can be ran via opt.

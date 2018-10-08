@@ -4,8 +4,9 @@ int x(void) {
   return 10;
 }
 
-void y(int n) {
+int y(int n) {
   int tmp = n+n;
+  return tmp;
 }
 
 int z(void) {
@@ -15,7 +16,9 @@ int z(void) {
 
 int main(void) {
   int x_ret = x();
-  y(x_ret);
+
+  int y_ret = y(x_ret);
+  int y_store = y_ret;
 
   int z_ret = z();
   int z_store = z_ret;

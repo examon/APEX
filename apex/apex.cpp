@@ -24,7 +24,7 @@ bool APEXPass::runOnModule(Module &M) {
   // Initialize apex_dg, so we have dependencies stored in neat little graph.
   apexDgInit(apex_dg);
   //  apexDgPrint(apex_dg, true);
-  apexDgPrintDataDependeniesCompact(apex_dg);
+  //  apexDgPrintDataDependeniesCompact(apex_dg);
 
   // Use @apex_dg and make graph only out of data dependencies.
   // Store everything back into the @apex_dg.
@@ -42,40 +42,15 @@ bool APEXPass::runOnModule(Module &M) {
   // Resolve data dependencies for functions in @path.
   apexDgResolveDependencies(path, apex_dg);
 
-  // TODO: WIP
-  // TODO: We have a function that we are going to remove (i.e. z()).
-  // TODO: What we need to do is to remove all dependnecies before removing z().
-  {
-    for (auto &node_fcn : apex_dg.node_function_map) {
-      LLVMNode *node = node_fcn.first;
-      Value *val = node->getValue();
-      if (isa<CallInst>(val)) {
+  // TODO: We need to check reverse data dependnecies as well!!!
+  // When we specify target as function y(), we need to check reverse deps
+  // in case something before y() has to be called, which in this case is x().
+  // If we do not check this, x() is not going to be added into @path, gets
+  // removed and pass is going to segfaults, because y() doesn't have its deps.
+  path.push_back(M.getFunction("x")); // TODO: Temporary workaround. Remove.
 
-        CallInst *curr_call_inst = cast<CallInst>(val);
-        Function *curr_fcn = curr_call_inst->getCalledFunction();
-        std::string curr_fcn_name = curr_fcn->getName();
-
-        // TODO: Make this generalized.
-        if (curr_fcn_name == "z") {
-          // This should happen every time that we are going to remove function.
-          // That is, find all its function calls and investigate if there
-          // are any dependencies.
-          // If there are dependencies, remove the whole chain.
-          std::vector<LLVMNode *> dependencies;
-          apexDgFindDataDependencies(apex_dg, *node, dependencies);
-
-          // Go over dependencies and erase them all.
-          for (LLVMNode *node : dependencies) {
-            Instruction *inst = cast<Instruction>(node->getValue());
-            inst->eraseFromParent();
-          }
-        }
-      }
-    }
-  }
-
-  // Remove all functions that are not in the @path.
-  moduleRemoveFunctionsNotInPath(M, path);
+  // Remove all functions (along with dependencies) that are not in the @path.
+  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
   logPrintUnderline("APEXPass END");
   return true;
@@ -133,16 +108,18 @@ void APEXPass::functionListFlatPrint(const std::list<Function *> &functions) {
 }
 
 /// Takes pointer to function F, iterates over instructions calling this
-/// function
-/// and removes these instructions.
+/// function and removes these instructions.
 ///
-/// Returns: number of removed instructions, -1 in case of error.
-int APEXPass::functionRemoveCalls(const Function *F) {
+/// Returns: Number of removed instructions, -1 in case of error.
+int APEXPass::functionRemoveCalls(APEXDependencyGraph &apex_dg,
+                                  const Function *F) {
   int calls_removed = 0;
 
   if (nullptr == F) {
     return -1;
   }
+
+  std::string fcn_name = F->getGlobalIdentifier();
 
   logPrint("- removing function calls to: " + F->getGlobalIdentifier());
   for (const Use &use : F->uses()) {
@@ -152,18 +129,11 @@ int APEXPass::functionRemoveCalls(const Function *F) {
       message += "; removing call instruction to: ";
       message += F->getName();
 
-      if (!UserInst->getType()->isVoidTy()) {
-        // NOTE: Currently only removing void returning calls.
-        // TODO: handle non-void returning function calls in the future
-        message += "; removing non-void returning call is not yet supported! ";
-        message += "[ABORT]";
-        logPrint(message);
-        return -1;
-      }
+      // TODO: I don't know why this needs to be here.
+      // TODO: If it is outside, e.g. in the functionRemove(), it segfaults.
+      // TODO: Needs refactoring. This is retarded.
+      functionRemoveDependencies(apex_dg, fcn_name);
 
-      logPrint(message);
-
-      UserInst->eraseFromParent();
       calls_removed++;
     } else {
       return -1;
@@ -176,7 +146,7 @@ int APEXPass::functionRemoveCalls(const Function *F) {
 /// removes function F itself.
 ///
 /// Returns: 0 if successful or -1 in case of error.
-int APEXPass::functionRemove(Function *F) {
+int APEXPass::functionRemove(APEXDependencyGraph &apex_dg, Function *F) {
   if (nullptr == F) {
     return -1;
   }
@@ -184,12 +154,12 @@ int APEXPass::functionRemove(Function *F) {
 
   logPrint("functionRemove(): " + fcn_id);
 
-  if (functionRemoveCalls(F) < 0) {
+  if (functionRemoveCalls(apex_dg, F) < 0) {
     return -1;
   }
 
   std::string message = "removing function: ";
-  message += F->getGlobalIdentifier();
+  message += fcn_id;
   logPrint(message);
 
   F->eraseFromParent();
@@ -243,6 +213,39 @@ int APEXPass::functionGetCallees(const Function *F,
     }
   }
   return 0;
+}
+
+/// Finds function call to function with global id @function_name in
+/// the @apex_dg and removes the whole chain of dependencies that his
+/// function call depends on.
+void APEXPass::functionRemoveDependencies(APEXDependencyGraph &apex_dg,
+                                          std::string function_name) {
+  for (auto &node_fcn : apex_dg.node_function_map) {
+    LLVMNode *node = node_fcn.first;
+    Value *val = node->getValue();
+    if (nullptr == val) {
+      logPrint(">>>> VAL NULL <<<<");
+      return;
+    }
+
+    if (isa<CallInst>(val)) {
+      CallInst *curr_call_inst = cast<CallInst>(val);
+      Function *curr_fcn = curr_call_inst->getCalledFunction();
+      std::string curr_fcn_name = curr_fcn->getName();
+
+      // TODO: Make this generalized.
+      if (curr_fcn_name == function_name) {
+        std::vector<LLVMNode *> dependencies;
+        apexDgFindDataDependencies(apex_dg, *node, dependencies);
+
+        // Go over dependencies and erase them all.
+        for (LLVMNode *node : dependencies) {
+          Instruction *inst = cast<Instruction>(node->getValue());
+          inst->eraseFromParent();
+        }
+      }
+    }
+  }
 }
 
 // Callgraph utilities
@@ -807,8 +810,9 @@ void APEXPass::apexDgFindDataDependencies(
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 /// Goes over all functions in module. If there is some function in module
-/// that is not in the @path, put it for removal.
+/// that is not in the @path, put it for removal along it all its dependencies.
 void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
+                                              APEXDependencyGraph &apex_dg,
                                               std::vector<Function *> &path) {
   logPrintUnderline("moduleRemoveFunctionsNotInPath(): Removing functions that "
                     "do not affect @path.");
@@ -838,11 +842,8 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
   logPrintUnderline("Removing collected functions.");
   {
     for (auto &fcn : functions_to_be_removed) {
-      if (functionRemove(fcn) < 0) {
-        logPrint("[ERROR] Aborting. Was about to remove non-void returning "
-                 "function!");
-        return;
-      }
+      std::string fcn_id = fcn->getGlobalIdentifier();
+      functionRemoveDependencies(apex_dg, fcn_id);
     }
   }
 }
