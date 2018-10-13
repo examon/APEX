@@ -57,6 +57,7 @@ struct APEXDependencyGraph {
   std::vector<APEXDependencyFunction> functions;
   // Mapping of nodes to dependencies & functions.
   std::map<LLVMNode *, std::vector<LLVMNode *>> node_data_dependencies_map;
+  std::map<LLVMNode *, std::vector<LLVMNode *>> node_rev_data_dependencies_map;
   std::map<LLVMNode *, APEXDependencyFunction *> node_function_map;
 };
 
@@ -81,8 +82,9 @@ private:
   int functionRemove(APEXDependencyGraph &apex_dg, Function *F);
   int functionGetCallers(const Function *F, std::vector<Function *> &callers);
   int functionGetCallees(const Function *F, std::vector<Function *> &callees);
-  void functionRemoveDependencies(APEXDependencyGraph &apex_dg,
-                                  std::string function_name);
+  void functionCollectDependencies(APEXDependencyGraph &apex_dg,
+                                   std::string function_nam,
+                                   std::vector<LLVMNode *> &dependencies);
 
   // Callgraph utilities.
   int createCallGraph(
@@ -111,10 +113,15 @@ private:
   void apexDgNodeResolveDependencies(std::vector<Function *> &path,
                                      APEXDependencyGraph &apex_dg,
                                      const APEXDependencyNode &node);
-  void apexDgResolveDependencies(std::vector<Function *> &path,
+  void apexDgNodeResolveRevDependencies(std::vector<Function *> &path,
+                                        APEXDependencyGraph &apex_dg,
+                                        const APEXDependencyNode &node);
+  void updatePathAddDependencies(std::vector<Function *> &path,
                                  APEXDependencyGraph &apex_dg);
-  void apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
-                                  std::vector<LLVMNode *> &dependencies);
+  void
+  apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
+                             std::vector<LLVMNode *> &dependencies,
+                             std::vector<LLVMNode *> &rev_data_dependencies);
 
   // Module utilities.
   void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
