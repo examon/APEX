@@ -215,10 +215,6 @@ int APEXPass::functionGetCallees(const Function *F,
 void APEXPass::functionCollectDependencies(
     APEXDependencyGraph &apex_dg, std::string function_name,
     std::vector<LLVMNode *> &dependencies) {
-  logPrintUnderline(
-      "functionCollectDependencies(): collecting dependencies for " +
-      function_name);
-
   for (auto &node_fcn : apex_dg.node_function_map) {
     LLVMNode *node = node_fcn.first;
     Value *val = node->getValue();
@@ -822,14 +818,12 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
 
 /// Take @node and find all data dependencies that form the chain.
 /// Store these dependencies in the @dependencies vector.
+// TODO: Refactor this function. It is copy-paste code atm.
 void APEXPass::apexDgFindDataDependencies(
     APEXDependencyGraph &apex_dg, LLVMNode &node,
     std::vector<LLVMNode *> &data_dependencies,
     std::vector<LLVMNode *> &rev_data_dependencies) {
-  logPrintUnderline("apexDgFindDataDependencies():");
-
   {
-    logPrint("Finding data dependencies.");
     std::vector<LLVMNode *> queue;
     queue.push_back(&node);
     while (false == queue.empty()) {
@@ -853,21 +847,8 @@ void APEXPass::apexDgFindDataDependencies(
         queue.push_back(neighbor);
       }
     }
-
-    //    std::string num_dependencies =
-    //    std::to_string(data_dependencies.size());
-    //    logPrint("number of dependencies: " + num_dependencies);
-    //    logPrintFlat("dependencies for: ");
-    //    node.getValue()->dump();
-    //    for (LLVMNode *node : data_dependencies) {
-    //      logPrintFlat(" -");
-    //      node->getValue()->dump();
-    //    }
   }
-
-  // TODO: Refactor this copy-paste code.
   {
-    logPrint("Finding reverse data dependencies.");
     std::vector<LLVMNode *> queue;
     queue.push_back(&node);
     while (false == queue.empty()) {
@@ -891,16 +872,6 @@ void APEXPass::apexDgFindDataDependencies(
         queue.push_back(neighbor);
       }
     }
-
-    //    std::string num_rev_dependencies =
-    //    std::to_string(data_dependencies.size());
-    //    logPrint("number of reverse dependencies: " + num_rev_dependencies);
-    //    logPrintFlat("dependencies for: ");
-    //    node.getValue()->dump();
-    //    for (LLVMNode *node : rev_data_dependencies) {
-    //      logPrintFlat(" -");
-    //      node->getValue()->dump();
-    //    }
   }
 }
 
@@ -915,9 +886,9 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
   logPrintUnderline("moduleRemoveFunctionsNotInPath(): Removing functions that "
                     "do not affect @path.");
 
+  logPrint("Collecting functions that are going to be removed:");
   std::vector<Function *> functions_to_be_removed;
-  { // Collect functions from module that will be removed,
-    // that is functions that are not in the @path vector.
+  {
     for (auto &module_fcn : M.getFunctionList()) {
       bool module_fcn_to_be_removed = true;
       for (Function *path_fcn : path) {
@@ -931,22 +902,24 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
       }
     }
 
-    logPrintFlat("                   path: ");
+    logPrintFlat("- path: ");
     functionVectorFlatPrint(path);
-    logPrintFlat("functions_to_be_removed: ");
+    logPrintFlat("- functions_to_be_removed: ");
     functionVectorFlatPrint(functions_to_be_removed);
   }
 
-  logPrint("Collecting dependencies:");
+  logPrint("\nCollecting instruction dependencies for each function that has "
+           "been marked for removal:");
   std::vector<LLVMNode *> collected_dependencies;
   {
     for (Function *fcn : functions_to_be_removed) {
       std::string fcn_id = fcn->getGlobalIdentifier();
       std::vector<LLVMNode *> dependencies;
-      functionCollectDependencies(apex_dg, fcn_id, dependencies);
-      logPrint("");
+      int unique_dependencies = 0;
 
-      // Append to the @collected_dependnecies instruction that is not
+      functionCollectDependencies(apex_dg, fcn_id, dependencies);
+
+      // Append to the @collected_dependencies instruction that is not
       // already in the collection.
       for (LLVMNode *d : dependencies) {
         bool d_already_in = false;
@@ -956,37 +929,47 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
           }
         }
         if (false == d_already_in) {
-          d->getValue()->dump();
+          unique_dependencies += 1;
           collected_dependencies.push_back(d);
         }
       }
-    }
 
-    std::string total_dependencies =
-        std::to_string(collected_dependencies.size());
-    logPrint("\n\nTotal amount of dependencies collected: " +
-             total_dependencies);
-    for (LLVMNode *n : collected_dependencies) {
-      n->getValue()->dump();
+      logPrint("- function: " + fcn_id);
+      logPrint("-- instruction dependencies count: " +
+               std::to_string(dependencies.size()));
+      logPrint("-- unique instruction dependencies count: " +
+               std::to_string(unique_dependencies));
     }
   }
 
-  logPrint("\n\nRemoving dependencies:");
+  logPrint("\nRemoving collected instruction dependencies:");
   {
-    for (LLVMNode *n : collected_dependencies) {
+    int removed_inst_count = 0;
 
+    for (LLVMNode *n : collected_dependencies) {
       Instruction *inst = cast<Instruction>(n->getValue());
-      if (!inst->use_empty()) {
+
+      if (false == inst->use_empty()) {
+        // I'm not sure if this is even necessary.
         inst->replaceAllUsesWith(UndefValue::get(inst->getType()));
       }
       inst->eraseFromParent();
+      removed_inst_count += 1;
     }
+
+    logPrint("- removed instructions count: " +
+             std::to_string(removed_inst_count));
   }
 
-  logPrint("Removing function bodies:");
+  logPrint("\nRemoving marked function bodies:");
   {
+    int removed_fcn_count = 0;
+
     for (Function *f : functions_to_be_removed) {
       f->eraseFromParent();
+      removed_fcn_count += 1;
     }
+
+    logPrint("- removed functions count: " + std::to_string(removed_fcn_count));
   }
 }
