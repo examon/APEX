@@ -350,64 +350,6 @@ void APEXPass::printCallGraph(
 /// Result is stored in the @final_path.
 ///
 /// Returns: 0 in success, -1 if error.
-// TODO: Implement proper BFS (with tagging visited nodes).
-/*
-int APEXPass::findPath(
-    const std::vector<std::pair<Function *, std::vector<Function *>>>
-        &callgraph,
-    const std::string &source, const std::string &target,
-    std::vector<Function *> &final_path) {
-  logPrintUnderline("findPath(): Finding path from @" + source + " to @" +
-                    target);
-
-  std::vector<std::vector<std::string>> queue;
-  std::vector<std::string> v_start;
-  v_start.push_back(source);
-  queue.push_back(v_start);
-
-  while (false == queue.empty()) {
-    std::vector<std::string> path = queue.back();
-    queue.pop_back();
-
-    std::string node = path.back();
-
-    // Found the end. Store function pointers to @final_path.
-    if (node == target) {
-      for (const std::string node_id : path) {
-        for (auto &caller_callees : callgraph) {
-          Function *caller = caller_callees.first;
-          if (caller->getGlobalIdentifier() == node_id) {
-            final_path.push_back(caller);
-          }
-        }
-      }
-      logPrint("- done");
-      return 0;
-    }
-
-    // Find adjacent/called nodes of @node and save them to @callees.
-    std::vector<Function *> callees;
-    for (auto &caller_callees : callgraph) {
-      if (node == caller_callees.first->getGlobalIdentifier()) {
-        callees = caller_callees.second;
-      }
-    }
-
-    // Iterate over adjacent/called nodes and add them to the path.
-    for (Function *callee : callees) {
-      std::string callee_id = callee->getGlobalIdentifier();
-      std::vector<std::string> new_path = path;
-      new_path.push_back(callee_id);
-      queue.push_back(new_path);
-    }
-  }
-
-  logPrint("- Unable to find path from @" + source + " to @" + target +
-           " [ERROR]");
-  return -1;
-}
-*/
-
 int APEXPass::findPath(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph,
