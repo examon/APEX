@@ -37,13 +37,51 @@ bool APEXPass::runOnModule(Module &M) {
 
   // Find path from @source to @target in the @callgraph. Save it to @path.
   findPath(call_graph, ARG_SOURCE_FCN, ARG_TARGET_FCN, path);
-  //  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
+  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
 
   // Resolve data dependencies for functions in @path.
   updatePathAddDependencies(path, apex_dg);
 
   // Remove all functions (along with dependencies) that are not in the @path.
   moduleRemoveFunctionsNotInPath(M, apex_dg, path);
+
+  // TODO: WIP
+  // 1. Figure out at which call to ARG_TARGET_FCN we want to stop and replace
+  //    that call with return.
+
+  logPrintUnderline("Getting callsite for @" + ARG_TARGET_FCN);
+  {
+    Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
+    if (nullptr == target_fcn) {
+      logPrint("ERROR: Could not get target function from module.");
+      return true;
+    }
+
+    std::vector<Function *> target_fcn_callers;
+    if (functionGetCallers(target_fcn, target_fcn_callers) != 0) {
+      logPrint("ERROR: Could not get callers for target function.");
+    }
+
+    logPrint("Collected function callers:");
+    for (Function *f : target_fcn_callers) {
+      f->dump();
+      logPrint("- " + f->getGlobalIdentifier());
+    }
+
+    logPrint("Picking one caller:");
+    // Ok, so we have @target_fcn_callers AKA functions that call @target.
+    // There can be multiple callers, so we need to decide which one to
+    // pick.
+    // We will pick one that is immediately before @target in @path, e.g.:
+    // If, @path = [main, n, y], @target = y, so we will pick @n.
+    for (int i = 0; i < path.size(); ++i) {
+      logPrint(path[i]->getGlobalIdentifier());
+    }
+  }
+
+  // 2. We will need to get all data dependencies from this call and remove them
+  //    before replacing call with return, so that there are no segfaults????
+  // 3. done?
 
   logPrintUnderline("APEXPass END");
   return true;
@@ -172,11 +210,6 @@ int APEXPass::functionGetCallers(const Function *F,
 
   for (const Use &use : F->uses()) {
     if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      if (!UserInst->getType()->isVoidTy()) {
-        // Currently only removing void returning calls.
-        // TODO: handle non-void returning function calls in the future
-        return -1;
-      }
       callers.push_back(UserInst->getFunction());
     } else {
       return -1;
@@ -318,6 +351,7 @@ void APEXPass::printCallGraph(
 ///
 /// Returns: 0 in success, -1 if error.
 // TODO: Implement proper BFS (with tagging visited nodes).
+/*
 int APEXPass::findPath(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph,
@@ -371,6 +405,95 @@ int APEXPass::findPath(
   logPrint("- Unable to find path from @" + source + " to @" + target +
            " [ERROR]");
   return -1;
+}
+*/
+
+int APEXPass::findPath(
+    const std::vector<std::pair<Function *, std::vector<Function *>>>
+        &callgraph,
+    const std::string &source, const std::string &target,
+    std::vector<Function *> &final_path) {
+  logPrintUnderline("findPath(): Finding path from @" + source + " to @" +
+                    target);
+
+  logPrint("Searching for @" + source + " function in callgraph:");
+  const std::pair<Function *, std::vector<Function *>> *source_node = nullptr;
+  {
+    for (auto &node_neighbours : callgraph) {
+      Function *node = node_neighbours.first;
+      if (source == node->getGlobalIdentifier()) {
+        source_node = &node_neighbours;
+        break;
+      }
+    }
+    if (nullptr == source_node) {
+      logPrint("ERROR: Could not find source function.");
+      return -1;
+    } else {
+      logPrint("- done");
+    }
+  }
+
+  logPrint("\nRunning BFS to find path from @" + source + " to @" + target +
+           ":");
+  std::map<Function *, std::vector<Function *>> function_path;
+  {
+    std::vector<std::pair<Function *, std::vector<Function *>>> queue;
+    std::vector<Function *> visited;
+
+    queue.push_back(*source_node);
+
+    while (false == queue.empty()) {
+      std::pair<Function *, std::vector<Function *>> current = queue.back();
+      queue.pop_back();
+      Function *node = current.first;
+      std::vector<Function *> neighbours = current.second;
+
+      // Store current node as visited.
+      visited.push_back(node);
+
+      for (Function *neighbour : current.second) {
+        // Store @main->@neighbour path.
+        function_path[neighbour].push_back(current.first);
+
+        // Check if we already visited @neighbour.
+        bool neighbour_already_visited = false;
+        for (Function *visited_fcn : visited) {
+          if (visited_fcn == neighbour) {
+            neighbour_already_visited = true;
+            break;
+          }
+        }
+        // Add @neighbour to the queue along with its neighbours if it was
+        // not visited already.
+        if (false == neighbour_already_visited) {
+          for (auto &node_neighbours : callgraph) {
+            if (node_neighbours.first == neighbour) {
+              queue.push_back(node_neighbours);
+            }
+          }
+        }
+      }
+    }
+    logPrint("- done");
+  }
+
+  logPrint("\nReconstructing and storing @" + source + " -> @" + target +
+           " path to the @final_path:");
+  {
+    for (auto &node_path : function_path) {
+      // Need to pull @target first.
+      if (node_path.first->getGlobalIdentifier() == target) {
+        // We push path that was stored. First node should be @source.
+        for (Function *node : node_path.second) {
+          final_path.push_back(node);
+        }
+        // Finally, push @target node itself.
+        final_path.push_back(node_path.first);
+        logPrint("- done");
+      }
+    }
+  }
 }
 
 /// Prints path.
@@ -613,8 +736,6 @@ void APEXPass::apexDgPrintGraph(APEXDependencyGraph &apex_dg) {
 void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
                                              APEXDependencyGraph &apex_dg,
                                              const APEXDependencyNode &node) {
-  logPrintUnderline(
-      "apexDgNodeResolveDependencies(): Checking for dependecies.");
   for (auto n : apex_dg.node_data_dependencies_map) {
     if (n.first->getValue() == node.value) {
       // @n.first is LLVMNode * that we want
@@ -639,19 +760,14 @@ void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
           std::string curr_fcn_name = curr_fcn->getName();
           // Add this function to the @path (if it is not already
           // there).
-          logPrint("this stuff");
-          curr_val->dump();
-          logPrint("is calling: " + curr_fcn_name);
           bool curr_fcn_in_path = false;
           for (Function *path_fcn : path) {
             std::string path_fcn_name = path_fcn->getName();
             if (curr_fcn_name == path_fcn_name) {
               curr_fcn_in_path = true;
-              logPrint("curr_fcn: " + curr_fcn_name + ", is in path already!");
             }
           }
           if (false == curr_fcn_in_path) {
-            logPrint("pushing: " + curr_fcn_name + " to path");
             path.push_back(curr_fcn);
           }
         }
@@ -669,8 +785,6 @@ void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
 void APEXPass::apexDgNodeResolveRevDependencies(
     std::vector<Function *> &path, APEXDependencyGraph &apex_dg,
     const APEXDependencyNode &node) {
-  logPrintUnderline(
-      "apexDgNodeResolveRevDependencies(): Checking for reverse dependecies.");
 
   for (auto n : apex_dg.node_rev_data_dependencies_map) {
     if (n.first->getValue() == node.value) {
@@ -696,19 +810,14 @@ void APEXPass::apexDgNodeResolveRevDependencies(
           std::string curr_fcn_name = curr_fcn->getName();
           // Add this function to the @path (if it is not already
           // there).
-          logPrint("this stuff");
-          curr_val->dump();
-          logPrint("is calling: " + curr_fcn_name);
           bool curr_fcn_in_path = false;
           for (Function *path_fcn : path) {
             std::string path_fcn_name = path_fcn->getName();
             if (curr_fcn_name == path_fcn_name) {
               curr_fcn_in_path = true;
-              logPrint("curr_fcn: " + curr_fcn_name + ", is in path already!");
             }
           }
           if (false == curr_fcn_in_path) {
-            logPrint("pushing: " + curr_fcn_name + " to path");
             path.push_back(curr_fcn);
           }
         }
@@ -812,7 +921,7 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
         }
       }
     }
-    logPrint("\n");
+    logPrint("");
   }
 }
 

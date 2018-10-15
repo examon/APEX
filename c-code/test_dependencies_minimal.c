@@ -14,6 +14,11 @@ int z(void) {
   return tmp;
 }
 
+int n(void) {
+  int y_ret = y(10);
+  return y_ret;
+}
+
 int main(void) {
   int x_ret = x();
 
@@ -22,7 +27,9 @@ int main(void) {
 
   int z_ret = z();
   int z_store = z_ret;
-  // TODO: Add fcn call to function that takes @z_store.
+
+  int n_ret = n();
+  int n_store = n_ret;
 
   return 0;
 }
