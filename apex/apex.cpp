@@ -45,11 +45,8 @@ bool APEXPass::runOnModule(Module &M) {
   // Remove all functions (along with dependencies) that are not in the @path.
   moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
-  // TODO: WIP
-  // 1. Figure out at which call to ARG_TARGET_FCN we want to stop and replace
-  //    that call with return.
-
-  logPrintUnderline("Getting callsite for @" + ARG_TARGET_FCN);
+  // Swap call to @target with return.
+  logPrintUnderline("Getting/picking callsite for @" + ARG_TARGET_FCN);
   {
     Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
     if (nullptr == target_fcn) {
@@ -64,24 +61,59 @@ bool APEXPass::runOnModule(Module &M) {
 
     logPrint("Collected function callers:");
     for (Function *f : target_fcn_callers) {
-      f->dump();
       logPrint("- " + f->getGlobalIdentifier());
     }
 
-    logPrint("Picking one caller:");
+    logPrint("\nPicking one caller:");
     // Ok, so we have @target_fcn_callers AKA functions that call @target.
     // There can be multiple callers, so we need to decide which one to
     // pick.
     // We will pick one that is immediately before @target in @path, e.g.:
     // If, @path = [main, n, y], @target = y, so we will pick @n.
+    Function *chosen_caller = nullptr;
     for (int i = 0; i < path.size(); ++i) {
-      logPrint(path[i]->getGlobalIdentifier());
+      if ((path[i] == target_fcn) && (i > 0)) {
+        chosen_caller = path[i - 1];
+      }
     }
-  }
+    if (nullptr == chosen_caller) {
+      logPrint("ERROR: Could not find chosen caller.");
+      return true;
+    }
+    logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
 
-  // 2. We will need to get all data dependencies from this call and remove them
-  //    before replacing call with return, so that there are no segfaults????
-  // 3. done?
+    // Now that we have function that should call @ARG_TARGET_FCN, we search
+    // inside for call instruction to @ARG_TARGET_FCN.
+    logPrint("\nSearching call instruction to @" + ARG_TARGET_FCN +
+             " inside @" + chosen_caller->getGlobalIdentifier() + ":");
+    Instruction *chosen_instruction = nullptr;
+    for (auto &BB : *chosen_caller) {
+      for (auto &&I : BB) {
+        if (isa<CallInst>(I)) {
+          Function *called_fcn = cast<CallInst>(I).getCalledFunction();
+          if (called_fcn == target_fcn) {
+            chosen_instruction = &I;
+
+            // Ok, we have instruction that calls the target function.
+            // Now put return instruction instead of this instruction.
+            // TODO: Inserting instructions.
+            // https://llvm.org/docs/ProgrammersManual.html#creating-and-inserting-new-instructions
+            Instruction *ret_void_inst = nullptr;
+            Instruction *i = new AllocaInst(Type::VoidTyID);
+
+            BB.getInstList().insertAfter(chosen_instruction, ret_void_inst);
+
+            break;
+          }
+        }
+      }
+    }
+    if (nullptr == chosen_instruction) {
+      logPrint("ERROR: Could not find chosen instruction.");
+      return true;
+    }
+    logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
+  }
 
   logPrintUnderline("APEXPass END");
   return true;

@@ -71,7 +71,7 @@ clang -O0 -c -emit-llvm c-code/${INPUT_SOURCE} -o build/${BYTECODE_FROM_INPUT}
 opt -o build/${BYTECODE_FROM_INPUT_BASIC_OPTS} ${BASIC_OPTS} build/${BYTECODE_FROM_INPUT} > /dev/null
 
 # run our pass
-opt -o build/${BYTECODE_FROM_INPUT_BASIC_OPTS_AND_APEX} -load build/apex/libAPEXPass.so -apex -source=${SOURCE_FCN} -target=${TARGET_FCN} < build/${BYTECODE_FROM_INPUT_BASIC_OPTS}  > /dev/null
+opt -o build/${BYTECODE_FROM_INPUT_BASIC_OPTS_AND_APEX} -load build/apex/libAPEXPass.so -apex -dce -source=${SOURCE_FCN} -target=${TARGET_FCN} < build/${BYTECODE_FROM_INPUT_BASIC_OPTS}  > /dev/null
 
 
 # ==============================================================================
