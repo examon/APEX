@@ -1,5 +1,9 @@
 #include <stdio.h>
 
+void test(void) {
+  return;
+}
+
 int x(void) {
   return 10;
 }

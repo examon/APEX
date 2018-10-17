@@ -93,16 +93,6 @@ bool APEXPass::runOnModule(Module &M) {
           Function *called_fcn = cast<CallInst>(I).getCalledFunction();
           if (called_fcn == target_fcn) {
             chosen_instruction = &I;
-
-            // Ok, we have instruction that calls the target function.
-            // Now put return instruction instead of this instruction.
-            // TODO: Inserting instructions.
-            // https://llvm.org/docs/ProgrammersManual.html#creating-and-inserting-new-instructions
-            Instruction *ret_void_inst = nullptr;
-            Instruction *i = new AllocaInst(Type::VoidTyID);
-
-            BB.getInstList().insertAfter(chosen_instruction, ret_void_inst);
-
             break;
           }
         }
@@ -113,6 +103,15 @@ bool APEXPass::runOnModule(Module &M) {
       return true;
     }
     logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
+
+    logPrint("\nInserting Return instruction before chosen instruction.");
+    // Ok, we have instruction that calls the target function.
+    // Now put return instruction instead of this instruction.
+    // TODO: Insert "ret void" and not "%TEST = alloca i32".
+    AllocaInst *new_inst = new AllocaInst(Type::getInt32Ty(M.getContext()), 0,
+                                          "TEST", chosen_instruction);
+    logPrintFlat("- instruction inserted:");
+    new_inst->dump();
   }
 
   logPrintUnderline("APEXPass END");
