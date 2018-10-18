@@ -51,7 +51,7 @@ bool APEXPass::runOnModule(Module &M) {
     Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
     if (nullptr == target_fcn) {
       logPrint("ERROR: Could not get target function from module.");
-      return true;
+      exit(-1);
     }
 
     std::vector<Function *> target_fcn_callers;
@@ -78,7 +78,7 @@ bool APEXPass::runOnModule(Module &M) {
     }
     if (nullptr == chosen_caller) {
       logPrint("ERROR: Could not find chosen caller.");
-      return true;
+      exit(-1);
     }
     logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
 
@@ -100,20 +100,46 @@ bool APEXPass::runOnModule(Module &M) {
     }
     if (nullptr == chosen_instruction) {
       logPrint("ERROR: Could not find chosen instruction.");
-      return true;
+      exit(-1);
     }
     logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
 
-    logPrint("\nInserting Return instruction before chosen instruction.");
-    // Ok, we have instruction that calls the target function.
-    // Now put return instruction instead of this instruction.
-    // TODO: Insert "ret void" and not "%TEST = alloca i32".
-    AllocaInst *new_inst = new AllocaInst(Type::getInt32Ty(M.getContext()), 0,
-                                          "TEST", chosen_instruction);
-    logPrintFlat("- instruction inserted:");
-    new_inst->dump();
+    logPrint(
+        "\nInserting call instruction to exit() before chosen instruction.");
+    // Create vector of types and put one integer into this vector.
+    std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
+    // We need to convert vector to ArrayRef.
+    ArrayRef<Type *> params = makeArrayRef(params_tmp);
+
+    // Create function that returns void and has parameters that are
+    // specified in the @params (that is, one Int32).
+    FunctionType *fType =
+        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
+
+    // Load exit function into variable.
+    Constant *temp = M.getOrInsertFunction("exit", fType);
+    if (nullptr == temp) {
+      logPrint("ERROR: exit function is not in symbol table.");
+      exit(-1);
+    }
+    Function *f = cast<Function>(temp);
+    logPrint("- loaded function: " + f->getGlobalIdentifier());
+    f->dump();
+
+    // Create exit call instruction.
+    IRBuilder<> builder = IRBuilder<>(M.getContext());
+    Value *one = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
+    CallInst *exit_call = builder.CreateCall(f, one);
+    if (nullptr == exit_call) {
+      logPrint("ERROR: could not create exit call instruction.");
+      exit(-1);
+    }
+    logPrintFlat("- exit call instruction created: ");
+    exit_call->dump();
   }
 
+  logPrintUnderline("\nFinal Module Dump:");
+  M.dump();
   logPrintUnderline("APEXPass END");
   return true;
 }
