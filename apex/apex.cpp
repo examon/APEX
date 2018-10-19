@@ -128,8 +128,9 @@ bool APEXPass::runOnModule(Module &M) {
     // Create exit call instruction.
     Value *exit_arg_val = ConstantInt::get(Type::getInt32Ty(M.getContext()), 9);
     ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
-    // CallInst::Create build call instruction to @exit_fcn that has @exit_params.
-    // Empty string "" means that the @exit_call_inst will not have return variable.
+    // CallInst::Create build call instruction to @exit_fcn that has
+    // @exit_params. Empty string "" means that the @exit_call_inst will not
+    // have return variable.
     // @exit_call_inst is inserted BEFORE @chosen_instruction.
     CallInst *exit_call_inst =
         CallInst::Create(exit_fcn, exit_params, "", chosen_instruction);
@@ -140,6 +141,21 @@ bool APEXPass::runOnModule(Module &M) {
     }
     logPrintFlat("- exit call instruction created: ");
     exit_call_inst->dump();
+
+    // TODO: Test externally linked code.
+    // TODO: Getting: LLVM ERROR: Program used external function
+    //       'libprint' which could not be resolved!
+
+    logPrint("\nWIP: Testing lib loadout.");
+    Constant *_lib_print = M.getOrInsertFunction(
+        "libprint", Type::getVoidTy(M.getContext()), (Type *)0);
+    Function *lib_print_fcn = cast<Function>(_lib_print);
+    logPrint("- libprint() from lib:");
+    lib_print_fcn->dump();
+    Instruction *lib_print_call_inst =
+        CallInst::Create(lib_print_fcn, "", chosen_instruction);
+    logPrintFlat("- call instruction to libprint(): ");
+    lib_print_call_inst->dump();
   }
 
   logPrintUnderline("\nFinal Module Dump:");

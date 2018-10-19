@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-void print()
+void libprint(void)
 {
-    printf("PRINT() from LIB\n");
+    printf("LIBPRINT() from LIB\n");
 }
