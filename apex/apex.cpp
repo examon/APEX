@@ -122,20 +122,24 @@ bool APEXPass::runOnModule(Module &M) {
       logPrint("ERROR: exit function is not in symbol table.");
       exit(-1);
     }
-    Function *f = cast<Function>(temp);
-    logPrint("- loaded function: " + f->getGlobalIdentifier());
-    f->dump();
+    Function *exit_fcn = cast<Function>(temp);
+    logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
 
     // Create exit call instruction.
-    IRBuilder<> builder = IRBuilder<>(M.getContext());
-    Value *one = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
-    CallInst *exit_call = builder.CreateCall(f, one);
-    if (nullptr == exit_call) {
+    Value *exit_arg_val = ConstantInt::get(Type::getInt32Ty(M.getContext()), 9);
+    ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
+    // CallInst::Create build call instruction to @exit_fcn that has @exit_params.
+    // Empty string "" means that the @exit_call_inst will not have return variable.
+    // @exit_call_inst is inserted BEFORE @chosen_instruction.
+    CallInst *exit_call_inst =
+        CallInst::Create(exit_fcn, exit_params, "", chosen_instruction);
+
+    if (nullptr == exit_call_inst) {
       logPrint("ERROR: could not create exit call instruction.");
       exit(-1);
     }
     logPrintFlat("- exit call instruction created: ");
-    exit_call->dump();
+    exit_call_inst->dump();
   }
 
   logPrintUnderline("\nFinal Module Dump:");
