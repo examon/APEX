@@ -31,7 +31,8 @@ using namespace llvm;
 using namespace dg;
 
 /// Protected functions IDs. These will not be removed by APEXPass.
-std::vector<std::string> PROTECTED_FCNS = {"libprint", "printf"};
+std::vector<std::string> PROTECTED_FCNS = {"lib_test", "lib_exit", "exit",
+                                           "printf"};
 
 /// Command line arguments for opt.
 cl::opt<std::string> ARG_SOURCE_FCN("source",

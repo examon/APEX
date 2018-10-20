@@ -11,7 +11,8 @@
 
 /// Running on each module.
 bool APEXPass::runOnModule(Module &M) {
-  logDumpModule(M);
+  //  logPrintUnderline("\nInitial Module Dump:");
+  //  logDumpModule(M);
 
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
@@ -43,12 +44,13 @@ bool APEXPass::runOnModule(Module &M) {
   updatePathAddDependencies(path, apex_dg);
 
   // Remove all functions (along with dependencies) that are not in the @path.
+  // Excluding functions in @PROTECTED_FCNS.
   moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
-  // Put exit() call before @target function call.
+  // Put exit call after selected @target function call.
   logPrintUnderline("Getting/picking callsite for @" + ARG_TARGET_FCN);
+  Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
   {
-    Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
     if (nullptr == target_fcn) {
       logPrint("ERROR: Could not get target function from module.");
       exit(-1);
@@ -63,14 +65,16 @@ bool APEXPass::runOnModule(Module &M) {
     for (Function *f : target_fcn_callers) {
       logPrint("- " + f->getGlobalIdentifier());
     }
+  }
 
-    logPrint("\nPicking one caller:");
+  logPrint("\nPicking one caller:");
+  Function *chosen_caller = nullptr;
+  {
     // Ok, so we have @target_fcn_callers AKA functions that call @target.
     // There can be multiple callers, so we need to decide which one to
     // pick.
     // We will pick one that is immediately before @target in @path, e.g.:
     // If, @path = [main, n, y], @target = y, so we will pick @n.
-    Function *chosen_caller = nullptr;
     for (int i = 0; i < path.size(); ++i) {
       if ((path[i] == target_fcn) && (i > 0)) {
         chosen_caller = path[i - 1];
@@ -81,12 +85,14 @@ bool APEXPass::runOnModule(Module &M) {
       exit(-1);
     }
     logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
+  }
 
+  logPrint("\nSearching call instruction to @" + ARG_TARGET_FCN + " inside @" +
+           chosen_caller->getGlobalIdentifier() + ":");
+  Instruction *chosen_instruction = nullptr;
+  {
     // Now that we have function that should call @ARG_TARGET_FCN, we search
     // inside for call instruction to @ARG_TARGET_FCN.
-    logPrint("\nSearching call instruction to @" + ARG_TARGET_FCN +
-             " inside @" + chosen_caller->getGlobalIdentifier() + ":");
-    Instruction *chosen_instruction = nullptr;
     for (auto &BB : *chosen_caller) {
       for (auto &&I : BB) {
         if (isa<CallInst>(I)) {
@@ -103,26 +109,11 @@ bool APEXPass::runOnModule(Module &M) {
       exit(-1);
     }
     logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
+  }
 
-    {
-      logPrint("\nTEST: calling libprint() from lib.c.");
-      // TODO: Test externally linked code.
-      // TODO: Getting: LLVM ERROR: Program used external function
-      //       'libprint' which could not be resolved!
-
-      Constant *_lib_print = M.getOrInsertFunction(
-          "libprint", Type::getVoidTy(M.getContext()), (Type *)0);
-      Function *lib_print_fcn = cast<Function>(_lib_print);
-      logPrint("- libprint() from lib:");
-      lib_print_fcn->dump();
-      Instruction *lib_print_call_inst =
-          CallInst::Create(lib_print_fcn, "", chosen_instruction);
-      logPrintFlat("- call instruction to libprint(): ");
-      lib_print_call_inst->dump();
-    }
-
-    logPrint(
-        "\nInserting call instruction to exit() before chosen instruction.");
+  logPrint("\nInserting call instruction to lib_exit() before chosen "
+           "instruction.");
+  {
     // Create vector of types and put one integer into this vector.
     std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
     // We need to convert vector to ArrayRef.
@@ -134,9 +125,9 @@ bool APEXPass::runOnModule(Module &M) {
         FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
 
     // Load exit function into variable.
-    Constant *temp = M.getOrInsertFunction("exit", fType);
+    Constant *temp = M.getOrInsertFunction("lib_exit", fType);
     if (nullptr == temp) {
-      logPrint("ERROR: exit function is not in symbol table.");
+      logPrint("ERROR: lib_exit function is not in symbol table.");
       exit(-1);
     }
     Function *exit_fcn = cast<Function>(temp);
@@ -153,15 +144,15 @@ bool APEXPass::runOnModule(Module &M) {
         CallInst::Create(exit_fcn, exit_params, "", chosen_instruction);
 
     if (nullptr == exit_call_inst) {
-      logPrint("ERROR: could not create exit call instruction.");
+      logPrint("ERROR: could not create lib_exit call instruction.");
       exit(-1);
     }
-    logPrintFlat("- exit call instruction created: ");
+    logPrintFlat("- lib_exit call instruction created: ");
     exit_call_inst->dump();
   }
 
-  logPrintUnderline("\nFinal Module Dump:");
-  M.dump();
+  //  logPrintUnderline("\nFinal Module Dump:");
+  //  M.dump();
   logPrintUnderline("APEXPass END");
   return true;
 }
