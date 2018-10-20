@@ -45,7 +45,7 @@ bool APEXPass::runOnModule(Module &M) {
   // Remove all functions (along with dependencies) that are not in the @path.
   moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
-  // Swap call to @target with return.
+  // Put exit() call before @target function call.
   logPrintUnderline("Getting/picking callsite for @" + ARG_TARGET_FCN);
   {
     Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
@@ -104,6 +104,23 @@ bool APEXPass::runOnModule(Module &M) {
     }
     logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
 
+    {
+      logPrint("\nTEST: calling libprint() from lib.c.");
+      // TODO: Test externally linked code.
+      // TODO: Getting: LLVM ERROR: Program used external function
+      //       'libprint' which could not be resolved!
+
+      Constant *_lib_print = M.getOrInsertFunction(
+          "libprint", Type::getVoidTy(M.getContext()), (Type *)0);
+      Function *lib_print_fcn = cast<Function>(_lib_print);
+      logPrint("- libprint() from lib:");
+      lib_print_fcn->dump();
+      Instruction *lib_print_call_inst =
+          CallInst::Create(lib_print_fcn, "", chosen_instruction);
+      logPrintFlat("- call instruction to libprint(): ");
+      lib_print_call_inst->dump();
+    }
+
     logPrint(
         "\nInserting call instruction to exit() before chosen instruction.");
     // Create vector of types and put one integer into this vector.
@@ -141,21 +158,6 @@ bool APEXPass::runOnModule(Module &M) {
     }
     logPrintFlat("- exit call instruction created: ");
     exit_call_inst->dump();
-
-    // TODO: Test externally linked code.
-    // TODO: Getting: LLVM ERROR: Program used external function
-    //       'libprint' which could not be resolved!
-
-    logPrint("\nWIP: Testing lib loadout.");
-    Constant *_lib_print = M.getOrInsertFunction(
-        "libprint", Type::getVoidTy(M.getContext()), (Type *)0);
-    Function *lib_print_fcn = cast<Function>(_lib_print);
-    logPrint("- libprint() from lib:");
-    lib_print_fcn->dump();
-    Instruction *lib_print_call_inst =
-        CallInst::Create(lib_print_fcn, "", chosen_instruction);
-    logPrintFlat("- call instruction to libprint(): ");
-    lib_print_call_inst->dump();
   }
 
   logPrintUnderline("\nFinal Module Dump:");
@@ -1008,6 +1010,7 @@ void APEXPass::apexDgFindDataDependencies(
 
 /// Goes over all functions in module. If there is some function in module
 /// that is not in the @path, put it for removal along it all its dependencies.
+/// Note: Functions that are in @PROTECTED_FCNS, will NOT be removed.
 void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
                                               APEXDependencyGraph &apex_dg,
                                               std::vector<Function *> &path) {
@@ -1025,6 +1028,15 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
           module_fcn_to_be_removed = false;
         }
       }
+      // @module_fcn is inside @PROTECTED_FCNS, do not remove it.
+      // Inside @PROTECTED_FCNS could be some function from external library,
+      // or debug functions or whatever that we do not want to optimize out.
+      for (std::string &protected_fcn_id : PROTECTED_FCNS) {
+        if (protected_fcn_id == module_fcn.getGlobalIdentifier()) {
+          module_fcn_to_be_removed = false;
+        }
+      }
+
       if (true == module_fcn_to_be_removed) {
         functions_to_be_removed.push_back(&module_fcn);
       }
@@ -1032,8 +1044,13 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
 
     logPrintFlat("- path: ");
     functionVectorFlatPrint(path);
-    logPrintFlat("- functions_to_be_removed: ");
+    logPrintFlat("- functions to be removed: ");
     functionVectorFlatPrint(functions_to_be_removed);
+    logPrintFlat("- protected functions: ");
+    for (std::string &protected_fcn_id : PROTECTED_FCNS) {
+      logPrintFlat(protected_fcn_id + ", ");
+    }
+    logPrint("");
   }
 
   logPrint("\nCollecting instruction dependencies for each function that has "

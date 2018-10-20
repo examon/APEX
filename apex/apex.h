@@ -19,7 +19,6 @@
 #include <llvm/Analysis/CallGraph.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LegacyPassManager.h>
-
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
@@ -30,6 +29,9 @@
 
 using namespace llvm;
 using namespace dg;
+
+/// Protected functions IDs. These will not be removed by APEXPass.
+std::vector<std::string> PROTECTED_FCNS = {"libprint", "printf"};
 
 /// Command line arguments for opt.
 cl::opt<std::string> ARG_SOURCE_FCN("source",
