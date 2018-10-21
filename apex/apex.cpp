@@ -11,8 +11,8 @@
 
 /// Running on each module.
 bool APEXPass::runOnModule(Module &M) {
-  //  logPrintUnderline("\nInitial Module Dump:");
-  //  logDumpModule(M);
+  logPrintUnderline("\nInitial Module Dump:");
+  logDumpModule(M);
 
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
@@ -40,119 +40,19 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(call_graph, ARG_SOURCE_FCN, ARG_TARGET_FCN, path);
   printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
 
+  // Put exit call before selected @target function call.
+  moduleInsertExitAfterTarget(M, path, ARG_TARGET_FCN);
+
   // Resolve data dependencies for functions in @path.
-  updatePathAddDependencies(path, apex_dg);
+  // TODO: @y should be added to deps when target=@n
+  //  updatePathAddDependencies(path, apex_dg);
 
   // Remove all functions (along with dependencies) that are not in the @path.
   // Excluding functions in @PROTECTED_FCNS.
-  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
+  //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
-  // Put exit call after selected @target function call.
-  logPrintUnderline("Getting/picking callsite for @" + ARG_TARGET_FCN);
-  Function *target_fcn = M.getFunction(ARG_TARGET_FCN);
-  {
-    if (nullptr == target_fcn) {
-      logPrint("ERROR: Could not get target function from module.");
-      exit(-1);
-    }
-
-    std::vector<Function *> target_fcn_callers;
-    if (functionGetCallers(target_fcn, target_fcn_callers) != 0) {
-      logPrint("ERROR: Could not get callers for target function.");
-    }
-
-    logPrint("Collected function callers:");
-    for (Function *f : target_fcn_callers) {
-      logPrint("- " + f->getGlobalIdentifier());
-    }
-  }
-
-  logPrint("\nPicking one caller:");
-  Function *chosen_caller = nullptr;
-  {
-    // Ok, so we have @target_fcn_callers AKA functions that call @target.
-    // There can be multiple callers, so we need to decide which one to
-    // pick.
-    // We will pick one that is immediately before @target in @path, e.g.:
-    // If, @path = [main, n, y], @target = y, so we will pick @n.
-    for (int i = 0; i < path.size(); ++i) {
-      if ((path[i] == target_fcn) && (i > 0)) {
-        chosen_caller = path[i - 1];
-      }
-    }
-    if (nullptr == chosen_caller) {
-      logPrint("ERROR: Could not find chosen caller.");
-      exit(-1);
-    }
-    logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
-  }
-
-  logPrint("\nSearching call instruction to @" + ARG_TARGET_FCN + " inside @" +
-           chosen_caller->getGlobalIdentifier() + ":");
-  Instruction *chosen_instruction = nullptr;
-  {
-    // Now that we have function that should call @ARG_TARGET_FCN, we search
-    // inside for call instruction to @ARG_TARGET_FCN.
-    for (auto &BB : *chosen_caller) {
-      for (auto &&I : BB) {
-        if (isa<CallInst>(I)) {
-          Function *called_fcn = cast<CallInst>(I).getCalledFunction();
-          if (called_fcn == target_fcn) {
-            chosen_instruction = &I;
-            break;
-          }
-        }
-      }
-    }
-    if (nullptr == chosen_instruction) {
-      logPrint("ERROR: Could not find chosen instruction.");
-      exit(-1);
-    }
-    logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
-  }
-
-  logPrint("\nInserting call instruction to lib_exit() before chosen "
-           "instruction.");
-  {
-    // Create vector of types and put one integer into this vector.
-    std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
-    // We need to convert vector to ArrayRef.
-    ArrayRef<Type *> params = makeArrayRef(params_tmp);
-
-    // Create function that returns void and has parameters that are
-    // specified in the @params (that is, one Int32).
-    FunctionType *fType =
-        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
-
-    // Load exit function into variable.
-    Constant *temp = M.getOrInsertFunction("lib_exit", fType);
-    if (nullptr == temp) {
-      logPrint("ERROR: lib_exit function is not in symbol table.");
-      exit(-1);
-    }
-    Function *exit_fcn = cast<Function>(temp);
-    logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
-
-    // Create exit call instruction.
-    Value *exit_arg_val = ConstantInt::get(Type::getInt32Ty(M.getContext()), 9);
-    ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
-    // CallInst::Create build call instruction to @exit_fcn that has
-    // @exit_params. Empty string "" means that the @exit_call_inst will not
-    // have return variable.
-    // @exit_call_inst is inserted BEFORE @chosen_instruction.
-    CallInst *exit_call_inst =
-        CallInst::Create(exit_fcn, exit_params, "", chosen_instruction);
-
-    if (nullptr == exit_call_inst) {
-      logPrint("ERROR: could not create lib_exit call instruction.");
-      exit(-1);
-    }
-    logPrintFlat("- lib_exit call instruction created: ");
-    exit_call_inst->dump();
-  }
-
-  //  logPrintUnderline("\nFinal Module Dump:");
-  //  M.dump();
+  logPrintUnderline("Final Module Dump:");
+  M.dump();
   logPrintUnderline("APEXPass END");
   return true;
 }
@@ -849,29 +749,28 @@ void APEXPass::apexDgNodeResolveRevDependencies(
 /// additional functions are added).
 void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
                                          APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("updatePathAddDependencies(): Calculating and possibly "
-                    "adding dependencies to @path.");
+  logPrintUnderline("updatePathAddDependencies(): Calculating dependencies on "
+                    "@path. Possibly adding function to the @path.");
 
   // Make list out of path, so we can have pop_front().
   std::list<Function *> invesigation_list(path.begin(), path.end());
 
+  // Go over function in investigation list and figure out if they have
+  // any dependencies.
   while (false == invesigation_list.empty()) {
     logPrintFlat("path: ");
     functionVectorFlatPrint(path);
     logPrintFlat("investigation_list: ");
     functionListFlatPrint(invesigation_list);
 
-    // Take front element from @path and investigate dependencies.
-    Function *current_fcn = invesigation_list.front();
-    invesigation_list.
+    // Take front element from @investigation_list and investigate dependencies.
+    Function *fcn_to_investigate = invesigation_list.front();
+    invesigation_list.pop_front();
 
-        pop_front();
+    logPrint("investigating: " + fcn_to_investigate->getGlobalIdentifier());
 
-    std::string current_fcn_name = current_fcn->getName();
-    logPrint("investigating: " + current_fcn_name);
-
-    // Iterate over @current_fcn instructions
-    for (auto &BB : *current_fcn) {
+    // Take a closer look at instructions of @fcn_to_investigate.
+    for (auto &BB : *fcn_to_investigate) {
       for (auto &I : BB) {
 
         // We care only about call instructions.
@@ -883,19 +782,21 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
         CallInst *call_inst = cast<CallInst>(&I);
         Function *called_fcn = call_inst->getCalledFunction();
 
-        std::string called_fcn_name = called_fcn->getName();
-
-        logPrint("- " + current_fcn_name + " is calling: " + called_fcn_name);
+        logPrint("- " + fcn_to_investigate->getGlobalIdentifier() +
+                 " is calling: " + called_fcn->getGlobalIdentifier());
 
         // Dependencies resolution for @I from here.
         for (Function *path_function : path) {
-          if (called_fcn != path_function) {
-            continue;
-          }
-          // Ok, so @current_fcn is calling @called_fcn and @called_fcn
-          // is also in @path.
+          // We care only if @I is call instruction into some function that
+          // is in @path.
+          //          if (called_fcn != path_function) {
+          //            continue;
+          //          }
 
-          logPrint("-- " + called_fcn_name + " is in @path");
+          // Ok, so @current_fcn is calling @called_fcn and @called_fcn
+          // is in @path.
+
+          logPrint("-- " + called_fcn->getGlobalIdentifier() + " is in @path");
           // Now, investigate if call to @called_fcn has some data
           // dependencies (that are function calls), and add those
           // potential function calls to the path, so the function
@@ -905,7 +806,7 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
           // @current_fcn.
           for (APEXDependencyFunction &apex_dg_fcn : apex_dg.functions) {
             std::string apex_dg_fcn_name = apex_dg_fcn.value->getName();
-            if (current_fcn_name != apex_dg_fcn_name) {
+            if (fcn_to_investigate->getGlobalIdentifier() != apex_dg_fcn_name) {
               continue;
             }
 
@@ -1107,5 +1008,142 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
     }
 
     logPrint("- removed functions count: " + std::to_string(removed_fcn_count));
+  }
+}
+
+/// Finds FUNCTION with @target_id in @path. Takes predecessor of FUNCTION from
+/// path. In this predecessor, finds the call to the FUNCTION and inserts after
+/// this instruction, call to lib_exit() from lib.c
+void APEXPass::moduleInsertExitAfterTarget(Module &M,
+                                           const std::vector<Function *> &path,
+                                           const std::string &target_id) {
+  logPrintUnderline("moduleInsertExitBeforeTarget(): Inserting exit call "
+                    "before target instruction.");
+
+  logPrint("Getting/picking callsite for @" + target_id);
+  Function *target_fcn = M.getFunction(target_id);
+  {
+    if (nullptr == target_fcn) {
+      logPrint("ERROR: Could not get target function from module.");
+      exit(-1);
+    }
+
+    std::vector<Function *> target_fcn_callers;
+    if (functionGetCallers(target_fcn, target_fcn_callers) != 0) {
+      logPrint("ERROR: Could not get callers for target function.");
+    }
+
+    logPrint("Collected @" + target_id + " callers:");
+    for (Function *f : target_fcn_callers) {
+      logPrint("- " + f->getGlobalIdentifier());
+    }
+  }
+
+  logPrint("\nPicking one caller:");
+  Function *chosen_caller = nullptr;
+  {
+    // Ok, so we have @target_fcn_callers AKA functions that call @target.
+    // There can be multiple callers, so we need to decide which one to
+    // pick.
+    // We will pick one that is immediately before @target in @path, e.g.:
+    // If, @path = [main, n, y], @target = y, so we will pick @n.
+    for (int i = 0; i < path.size(); ++i) {
+      if ((path[i] == target_fcn) && (i > 0)) {
+        chosen_caller = path[i - 1];
+      }
+    }
+    if (nullptr == chosen_caller) {
+      logPrint("ERROR: Could not find chosen caller.");
+      exit(-1);
+    }
+    logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
+  }
+
+  logPrint("\nFinding chosen call instruction to @" + ARG_TARGET_FCN +
+           " inside @" + chosen_caller->getGlobalIdentifier() + ":");
+  Instruction *chosen_instruction = nullptr;
+  {
+    // Now that we have function that should call @ARG_TARGET_FCN, we search
+    // inside for call instruction to @ARG_TARGET_FCN.
+    for (auto &BB : *chosen_caller) {
+      for (auto &&I : BB) {
+        if (isa<CallInst>(I)) {
+          Function *called_fcn = cast<CallInst>(I).getCalledFunction();
+          if (called_fcn == target_fcn) {
+            chosen_instruction = &I;
+            break;
+          }
+        }
+      }
+    }
+    if (nullptr == chosen_instruction) {
+      logPrint("ERROR: Could not find chosen instruction.");
+      exit(-1);
+    }
+    logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
+  }
+
+  logPrint("\nSearching for insertion point (that is, instruction after chosen "
+           "instruction):");
+  Instruction *insertion_point = nullptr;
+  {
+    // We have @chosen_instruction, but we want to find instruction that sits
+    // right after @chosen_instruction. This way, we can insert exit call
+    // after @chosen_instruction and not before.
+    for (inst_iterator I = inst_begin(chosen_caller),
+                       E = inst_end(chosen_caller);
+         I != E; ++I) {
+      Instruction *current_inst = &(*I);
+      if (current_inst == chosen_instruction && I != E) {
+        I++;
+        insertion_point = &(*I);
+      }
+    }
+    if (nullptr == insertion_point) {
+      logPrint("ERROR: could not find insertion point!");
+      exit(-1);
+    }
+    logPrintFlat("- insertion point found: ");
+    insertion_point->dump();
+  }
+
+  logPrint("\nInserting call instruction to lib_exit() after chosen "
+           "instruction (that is, before insertion point).");
+  {
+    // Create vector of types and put one integer into this vector.
+    std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
+    // We need to convert vector to ArrayRef.
+    ArrayRef<Type *> params = makeArrayRef(params_tmp);
+
+    // Create function that returns void and has parameters that are
+    // specified in the @params (that is, one Int32).
+    FunctionType *fType =
+        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
+
+    // Load exit function into variable.
+    Constant *temp = M.getOrInsertFunction("lib_exit", fType);
+    if (nullptr == temp) {
+      logPrint("ERROR: lib_exit function is not in symbol table.");
+      exit(-1);
+    }
+    Function *exit_fcn = cast<Function>(temp);
+    logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
+
+    // Create exit call instruction.
+    Value *exit_arg_val = ConstantInt::get(Type::getInt32Ty(M.getContext()), 9);
+    ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
+    // CallInst::Create build call instruction to @exit_fcn that has
+    // @exit_params. Empty string "" means that the @exit_call_inst will not
+    // have return variable.
+    // @exit_call_inst is inserted BEFORE @chosen_instruction.
+    CallInst *exit_call_inst =
+        CallInst::Create(exit_fcn, exit_params, "", insertion_point);
+
+    if (nullptr == exit_call_inst) {
+      logPrint("ERROR: could not create lib_exit call instruction.");
+      exit(-1);
+    }
+    logPrintFlat("- lib_exit call instruction created: ");
+    exit_call_inst->dump();
   }
 }

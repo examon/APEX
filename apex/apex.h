@@ -15,6 +15,7 @@
 
 #include "llvm/ADT/APInt.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
 #include <llvm/Analysis/CallGraph.h>
 #include <llvm/IR/Instructions.h>
@@ -125,6 +126,7 @@ private:
                                         const APEXDependencyNode &node);
   void updatePathAddDependencies(std::vector<Function *> &path,
                                  APEXDependencyGraph &apex_dg);
+
   void
   apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
                              std::vector<LLVMNode *> &dependencies,
@@ -133,6 +135,9 @@ private:
   // Module utilities.
   void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
                                       std::vector<Function *> &path);
+  void moduleInsertExitAfterTarget(Module &M,
+                                   const std::vector<Function *> &path,
+                                   const std::string &target_id);
 };
 
 /// Registering our own pass, so it can be ran via opt.

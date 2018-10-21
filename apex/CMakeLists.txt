@@ -1,4 +1,4 @@
-add_library(APEXPass MODULE apex.cpp)
+add_library(APEXPass MODULE apex.cpp apex.h)
 
 OPTION(LLVM_DG "Support for LLVM Dependency graph" ON)
 OPTION(ENABLE_CFG "Add support for CFG edges to the graph" ON)

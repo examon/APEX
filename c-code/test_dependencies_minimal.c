@@ -2,8 +2,8 @@
 
 
 int x(void) {
-//  printf("x: in\n");
-//  printf("x: out\n");
+  printf("x: in\n");
+  printf("x: out\n");
   return 10;
 }
 
@@ -15,9 +15,9 @@ int y(int n) {
 }
 
 int z(void) {
-//  printf("z: in\n");
+  printf("z: in\n");
   int tmp = 1;
-//  printf("z: out\n");
+  printf("z: out\n");
   return tmp;
 }
 
