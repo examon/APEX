@@ -25,7 +25,7 @@ bool APEXPass::runOnModule(Module &M) {
   // Initialize apex_dg, so we have dependencies stored in neat little graph.
   apexDgInit(apex_dg);
   //  apexDgPrint(apex_dg, true);
-  //  apexDgPrintDataDependeniesCompact(apex_dg);
+  apexDgPrintDataDependeniesCompact(apex_dg);
 
   // Use @apex_dg and make graph only out of data dependencies.
   // Store everything back into the @apex_dg.
@@ -41,18 +41,88 @@ bool APEXPass::runOnModule(Module &M) {
   printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
 
   // Put exit call before selected @target function call.
-  moduleInsertExitAfterTarget(M, path, ARG_TARGET_FCN);
+  //  moduleInsertExitAfterTarget(M, path, ARG_TARGET_FCN);
 
   // Resolve data dependencies for functions in @path.
   // TODO: @y should be added to deps when target=@n
   //  updatePathAddDependencies(path, apex_dg);
+  //  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
+
+  logPrintUnderline("Dependency resolver: START");
+  // Investigate each function in @path.
+  for (auto &fcn : path) {
+    logPrint("FCN: " + fcn->getGlobalIdentifier());
+    for (auto &BB : *fcn) {
+      // Go over instructions for each function in @path.
+      for (auto &I : BB) {
+        if (false == isa<CallInst>(I)) {
+          continue;
+        }
+        // Ok, @I is call instruction.
+        // If @I calls something in @path, compute dependencies and include
+        // new stuff to @path.
+        CallInst *call_inst = cast<CallInst>(&I);
+        Function *called_fcn = call_inst->getCalledFunction();
+        logPrint("- @I calling: " + called_fcn->getGlobalIdentifier());
+
+        // We care if @I is calling function that is in the @path.
+        bool call_to_path = false;
+        for (Function *path_function : path) {
+          if (called_fcn == path_function) {
+            call_to_path = true;
+          }
+        }
+        if (false == call_to_path) {
+          // Do not investigate @I if it is calling function OUTSIDE PATH.
+          continue;
+        }
+
+        // Find @I in the @apex_dg.
+        logPrint("  - finding @I in @apex_dg");
+        APEXDependencyNode *I_apex = nullptr;
+        for (APEXDependencyFunction apex_fcn : apex_dg.functions) {
+          std::string apex_fcn_name = apex_fcn.value->getName();
+          if (apex_fcn_name == fcn->getGlobalIdentifier()) {
+
+            for (APEXDependencyNode apex_node : apex_fcn.nodes) {
+              if (true == isa<CallInst>(apex_node.value)) {
+                CallInst *node_inst = cast<CallInst>(apex_node.value);
+                Function *node_called_fcn = node_inst->getCalledFunction();
+                if (node_called_fcn == called_fcn) {
+                  I_apex = &apex_node;
+                  logPrint("  - found @I in @apex_dg");
+                }
+              }
+            }
+          }
+        }
+        if (nullptr == I_apex) {
+          logPrint("ERROR: Could not find @I in @apex_dg!");
+          exit(-1);
+        }
+
+        // Now, check if @I has some data dependencies that are fcn calls.
+        std::vector<LLVMNode *> data_dependencies;
+        std::vector<LLVMNode *> rev_data_dependencies;
+        LLVMNode *I_apex_node = I_apex->node;
+        apexDgFindDataDependencies(apex_dg, *I_apex_node, data_dependencies,
+                                   rev_data_dependencies);
+        // TODO: dependencies in vectors look weird/broken.
+        for (auto &dd : data_dependencies) {
+          dd->getValue()->dump();
+        }
+      }
+    }
+
+    logPrint("\n---\n");
+  }
 
   // Remove all functions (along with dependencies) that are not in the @path.
   // Excluding functions in @PROTECTED_FCNS.
-  //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
+  //    moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
-  logPrintUnderline("Final Module Dump:");
-  M.dump();
+  //  logPrintUnderline("Final Module Dump:");
+  //  M.dump();
   logPrintUnderline("APEXPass END");
   return true;
 }
@@ -638,13 +708,13 @@ void APEXPass::apexDgPrintGraph(APEXDependencyGraph &apex_dg) {
   }
 }
 
-// TODO: Refactor this function.
 /// Amazing, we have instruction that is calling some function.
 /// Now check if this instruction has dependencies.
 ///
 /// If it has dependencies and any of those is function call
 /// that is not in the @path, add function that it calls to
 /// the path.
+// TODO: Refactor this function.
 void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
                                              APEXDependencyGraph &apex_dg,
                                              const APEXDependencyNode &node) {
@@ -789,9 +859,9 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
         for (Function *path_function : path) {
           // We care only if @I is call instruction into some function that
           // is in @path.
-          //          if (called_fcn != path_function) {
-          //            continue;
-          //          }
+          if (called_fcn != path_function) {
+            continue;
+          }
 
           // Ok, so @current_fcn is calling @called_fcn and @called_fcn
           // is in @path.
