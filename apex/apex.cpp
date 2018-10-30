@@ -50,9 +50,9 @@ bool APEXPass::runOnModule(Module &M) {
 
   logPrintUnderline("Dependency resolver: START");
   // Investigate each function in @path.
-  for (auto &fcn : path) {
-    logPrint("FCN: " + fcn->getGlobalIdentifier());
-    for (auto &BB : *fcn) {
+  for (auto &fcn_in_path : path) {
+    logPrint("FCN: " + fcn_in_path->getGlobalIdentifier());
+    for (auto &BB : *fcn_in_path) {
       // Go over instructions for each function in @path.
       for (auto &I : BB) {
         if (false == isa<CallInst>(I)) {
@@ -82,15 +82,16 @@ bool APEXPass::runOnModule(Module &M) {
         APEXDependencyNode *I_apex = nullptr;
         for (APEXDependencyFunction apex_fcn : apex_dg.functions) {
           std::string apex_fcn_name = apex_fcn.value->getName();
-          if (apex_fcn_name == fcn->getGlobalIdentifier()) {
-
+          if (apex_fcn_name == fcn_in_path->getGlobalIdentifier()) {
             for (APEXDependencyNode apex_node : apex_fcn.nodes) {
               if (true == isa<CallInst>(apex_node.value)) {
                 CallInst *node_inst = cast<CallInst>(apex_node.value);
                 Function *node_called_fcn = node_inst->getCalledFunction();
                 if (node_called_fcn == called_fcn) {
                   I_apex = &apex_node;
-                  logPrint("  - found @I in @apex_dg");
+                  logPrintFlat("  - found @I: ");
+                  I_apex->value->dump();
+                  goto I_FOUND; // Get out of the loops.
                 }
               }
             }
@@ -101,16 +102,24 @@ bool APEXPass::runOnModule(Module &M) {
           exit(-1);
         }
 
+      I_FOUND:
         // Now, check if @I has some data dependencies that are fcn calls.
         std::vector<LLVMNode *> data_dependencies;
         std::vector<LLVMNode *> rev_data_dependencies;
         LLVMNode *I_apex_node = I_apex->node;
         apexDgFindDataDependencies(apex_dg, *I_apex_node, data_dependencies,
                                    rev_data_dependencies);
-        // TODO: dependencies in vectors look weird/broken.
-        for (auto &dd : data_dependencies) {
+        logPrint("   - @I data dependencies: ");
+        for (LLVMNode *dd : data_dependencies) {
           dd->getValue()->dump();
+          if (true == isa<CallInst>(dd->getValue())) {
+            logPrint("dd is call!");
+          }
         }
+        //        logPrint("   - @I reverse data dependencies: ");
+        //        for (auto &rdd : rev_data_dependencies) {
+        //          rdd->getValue()->dump();
+        //        }
       }
     }
 
