@@ -69,10 +69,10 @@ clang-format -style=llvm -i apex/*.cpp apex/*.h
 echo "========= Compiling input."
 
 # compile external libraries
-clang -O0 -c -emit-llvm c-code/${INPUT_LIB} -o build/${BYTECODE_FROM_LIB}
+clang -O0 -g -c -emit-llvm c-code/${INPUT_LIB} -o build/${BYTECODE_FROM_LIB}
 
 # compile without anything
-clang -O0 -c -emit-llvm c-code/${INPUT_SOURCE} -o build/${BYTECODE_FROM_INPUT}
+clang -O0 -g -c -emit-llvm c-code/${INPUT_SOURCE} -o build/${BYTECODE_FROM_INPUT}
 
 llvm-link build/${BYTECODE_FROM_LIB} build/${BYTECODE_FROM_INPUT} -S -o=build/${LINKED_DISASSEMBLY}
 llvm-as build/${LINKED_DISASSEMBLY} -o build/${BYTECODE_FROM_LINKED_INPUT_LIB}

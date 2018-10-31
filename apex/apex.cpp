@@ -63,19 +63,22 @@ bool APEXPass::runOnModule(Module &M) {
         // new stuff to @path.
         CallInst *call_inst = cast<CallInst>(&I);
         Function *called_fcn = call_inst->getCalledFunction();
-        logPrint("- @I calling: " + called_fcn->getGlobalIdentifier());
+        logPrintFlat("- @I calling: " + called_fcn->getGlobalIdentifier());
 
         // We care if @I is calling function that is in the @path.
-        bool call_to_path = false;
-        for (Function *path_function : path) {
-          if (called_fcn == path_function) {
-            call_to_path = true;
-          }
-        }
-        if (false == call_to_path) {
+        if (false == functionInPath(called_fcn, path)) {
           // Do not investigate @I if it is calling function OUTSIDE PATH.
+          logPrint(" (not in path)");
           continue;
         }
+
+        // We care if @I is calling non protected function.
+        if (true == functionIsProtected(called_fcn)) {
+          logPrint(" (protected)");
+          continue;
+        }
+
+        logPrint(" (IN path)");
 
         // Find @I in the @apex_dg.
         logPrint("  - finding @I in @apex_dg");
@@ -109,22 +112,20 @@ bool APEXPass::runOnModule(Module &M) {
         LLVMNode *I_apex_node = I_apex->node;
         apexDgFindDataDependencies(apex_dg, *I_apex_node, data_dependencies,
                                    rev_data_dependencies);
-        logPrint("   - @I data dependencies: ");
-        for (LLVMNode *dd : data_dependencies) {
-          dd->getValue()->dump();
-          if (true == isa<CallInst>(dd->getValue())) {
-            logPrint("dd is call!");
-          }
-        }
-        //        logPrint("   - @I reverse data dependencies: ");
-        //        for (auto &rdd : rev_data_dependencies) {
-        //          rdd->getValue()->dump();
-        //        }
+
+        logPrint("   - @I data dependencies:\n");
+        updatePathAddDependencies(data_dependencies, path);
+        logPrint("");
+        logPrint("   - @I reverse data dependencies:\n");
+        updatePathAddDependencies(rev_data_dependencies, path);
+        logPrint("");
       }
     }
 
     logPrint("\n---\n");
   }
+
+  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
 
   // Remove all functions (along with dependencies) that are not in the @path.
   // Excluding functions in @PROTECTED_FCNS.
@@ -317,6 +318,29 @@ void APEXPass::functionCollectDependencies(
       }
     }
   }
+}
+
+/// Returns true if function @F is protected.
+/// That is, part of the @PROTECTED_FCNS
+/// Protected functions will not be removed at the end of the APEXPass.
+bool APEXPass::functionIsProtected(Function *F) {
+  for (std::string fcn_id : PROTECTED_FCNS) {
+    if (F->getGlobalIdentifier() == fcn_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Returns true if function @F is in @path.
+bool APEXPass::functionInPath(Function *F,
+                              const std::vector<Function *> &path) {
+  for (Function *fcn : path) {
+    if (fcn == F) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Callgraph utilities
@@ -826,6 +850,7 @@ void APEXPass::apexDgNodeResolveRevDependencies(
 /// Investigates possible dependencies that may functions in @path have.
 /// In case there are some dependencies, @path is updated (that is,
 /// additional functions are added).
+/*
 void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
                                          APEXDependencyGraph &apex_dg) {
   logPrintUnderline("updatePathAddDependencies(): Calculating dependencies on "
@@ -916,6 +941,7 @@ void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
     logPrint("");
   }
 }
+ */
 
 /// Take @node and find all data dependencies that form the chain.
 /// Store these dependencies in the @dependencies vector.
@@ -971,6 +997,42 @@ void APEXPass::apexDgFindDataDependencies(
       // Add neighbours to the queue.
       for (LLVMNode *neighbor : apex_dg.node_rev_data_dependencies_map[curr]) {
         queue.push_back(neighbor);
+      }
+    }
+  }
+}
+
+/// Goes over @dependencies and checks whether there are any function calls
+/// to functions outside @path. If yes, function that is being called
+/// is pushed to the @path.
+///
+/// Note:
+/// @dependencies are dependencies for specific LLVMNode computed
+/// by @apexDgFindDataDependencies().
+void APEXPass::updatePathAddDependencies(
+    const std::vector<LLVMNode *> &dependencies,
+    std::vector<Function *> &path) {
+  for (LLVMNode *dd : dependencies) {
+    dd->getValue()->dump();
+    if (true == isa<CallInst>(dd->getValue())) {
+      logPrintFlat("Dependency is CALL to: ");
+
+      CallInst *dd_call_inst = cast<CallInst>(dd->getValue());
+      Function *dd_called_fcn = dd_call_inst->getCalledFunction();
+      logPrintFlat(dd_called_fcn->getGlobalIdentifier());
+
+      if (true == functionIsProtected(dd_called_fcn)) {
+        logPrint(" (protected)");
+        continue;
+      }
+      logPrint("");
+
+      if (false == functionInPath(dd_called_fcn, path)) {
+        logPrint(dd_called_fcn->getGlobalIdentifier() + ": not in path!");
+        logPrint("- Pushing to path: " + dd_called_fcn->getGlobalIdentifier());
+        path.push_back(dd_called_fcn);
+      } else {
+        logPrint(dd_called_fcn->getGlobalIdentifier() + ": already in path");
       }
     }
   }

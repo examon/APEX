@@ -33,7 +33,7 @@ using namespace dg;
 
 /// Protected functions IDs. These will not be removed by APEXPass.
 std::vector<std::string> PROTECTED_FCNS = {"lib_test", "lib_exit", "exit",
-                                           "printf"};
+                                           "printf", "llvm.dbg.declare"};
 
 /// Command line arguments for opt.
 cl::opt<std::string> ARG_SOURCE_FCN("source",
@@ -93,6 +93,8 @@ private:
   void functionCollectDependencies(APEXDependencyGraph &apex_dg,
                                    std::string function_nam,
                                    std::vector<LLVMNode *> &dependencies);
+  bool functionIsProtected(Function *F);
+  bool functionInPath(Function *F, const std::vector<Function *> &path);
 
   // Callgraph utilities.
   int createCallGraph(
@@ -124,8 +126,10 @@ private:
   void apexDgNodeResolveRevDependencies(std::vector<Function *> &path,
                                         APEXDependencyGraph &apex_dg,
                                         const APEXDependencyNode &node);
-  void updatePathAddDependencies(std::vector<Function *> &path,
-                                 APEXDependencyGraph &apex_dg);
+  //  void updatePathAddDependencies(std::vector<Function *> &path,
+  //                                 APEXDependencyGraph &apex_dg);
+  void updatePathAddDependencies(const std::vector<LLVMNode *> &dependencies,
+                                 std::vector<Function *> &path);
 
   void
   apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
