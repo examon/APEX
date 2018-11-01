@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
@@ -31,18 +32,31 @@
 using namespace llvm;
 using namespace dg;
 
+/// Error code when we want to crash APEXPass.
+int FATAL_ERROR = -1;
+
 /// Protected functions IDs. These will not be removed by APEXPass.
 std::vector<std::string> PROTECTED_FCNS = {"lib_test", "lib_exit", "exit",
                                            "printf", "llvm.dbg.declare"};
 
 /// Command line arguments for opt.
-cl::opt<std::string> ARG_SOURCE_FCN("source",
+/*
+cl::opt<std::string> source_function("source",
                                     cl::desc("Specify source function."),
                                     cl::value_desc("function name"));
 
-cl::opt<std::string> ARG_TARGET_FCN("target",
+cl::opt<std::string> target_function("target",
                                     cl::desc("Specify target function."),
                                     cl::value_desc("function name"));
+*/
+
+cl::opt<std::string> ARG_FILE(
+    "file", cl::desc("Filename in relative path from to the launching script."),
+    cl::value_desc("file name (e.g. code/main.c)"));
+
+cl::opt<std::string> ARG_LINE("line",
+                              cl::desc("Number representing line in the file."),
+                              cl::value_desc("Source code line number."));
 
 /// Node is usually line instruction of IR. Sometimes whole function.
 struct APEXDependencyNode {
@@ -137,6 +151,9 @@ private:
                              std::vector<LLVMNode *> &rev_data_dependencies);
 
   // Module utilities.
+  void moduleParseCmdLineArgsOrDie(void);
+  std::string moduleFindTargetFunctionOrDie(Module &M, const std::string &file,
+                                            const std::string &line);
   void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
                                       std::vector<Function *> &path);
   void moduleInsertExitAfterTarget(Module &M,

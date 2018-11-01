@@ -11,13 +11,22 @@
 
 /// Running on each module.
 bool APEXPass::runOnModule(Module &M) {
-  logPrintUnderline("\nInitial Module Dump:");
-  logDumpModule(M);
+  //  logPrintUnderline("\nInitial Module Dump:");
+  //  logDumpModule(M);
 
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
   std::vector<std::pair<Function *, std::vector<Function *>>> call_graph;
   std::vector<Function *> path;
+  std::string source_function = "main"; // TODO: Figure out entry automaticall?
+  std::string target_function = ""; // This is going to be initialized later.
+
+  logPrintUnderline("Parsing command line arguments:");
+  moduleParseCmdLineArgsOrDie();
+
+  logPrintUnderline("Locating target instructions:");
+  // TODO: Store target instruction.
+  target_function = moduleFindTargetFunctionOrDie(M, ARG_FILE, ARG_LINE);
 
   // Initialize dg. This runs analysis and computes dependencies.
   dgInit(M, dg);
@@ -33,20 +42,20 @@ bool APEXPass::runOnModule(Module &M) {
   //  apexDgPrintGraph(apex_dg);
 
   // Create call graph from module.
-  createCallGraph(M, ARG_SOURCE_FCN, call_graph);
+  createCallGraph(M, source_function, call_graph);
   //  printCallGraph(call_graph);
 
   // Find path from @source to @target in the @callgraph. Save it to @path.
-  findPath(call_graph, ARG_SOURCE_FCN, ARG_TARGET_FCN, path);
-  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
+  findPath(call_graph, source_function, target_function, path);
+  printPath(path, source_function, target_function);
 
   // Put exit call before selected @target function call.
-  //  moduleInsertExitAfterTarget(M, path, ARG_TARGET_FCN);
+  //  moduleInsertExitAfterTarget(M, path, target_function);
 
   // Resolve data dependencies for functions in @path.
   // TODO: @y should be added to deps when target=@n
   //  updatePathAddDependencies(path, apex_dg);
-  //  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
+  //  printPath(path, source_function, target_function);
 
   logPrintUnderline("Dependency resolver: START");
   // Investigate each function in @path.
@@ -121,11 +130,12 @@ bool APEXPass::runOnModule(Module &M) {
         logPrint("");
       }
     }
+    // TODO: one iteration of dep resolving is done
 
     logPrint("\n---\n");
   }
 
-  printPath(path, ARG_SOURCE_FCN, ARG_TARGET_FCN);
+  printPath(path, source_function, target_function);
 
   // Remove all functions (along with dependencies) that are not in the @path.
   // Excluding functions in @PROTECTED_FCNS.
@@ -1041,6 +1051,50 @@ void APEXPass::updatePathAddDependencies(
 // Module utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+/// Parses command line arguments
+///
+/// Dies if arguments are missing or are in from format.
+void APEXPass::moduleParseCmdLineArgsOrDie(void) {
+  // TODO: Add handling in case of missing/wrong values.
+  logPrint("file = " + ARG_FILE);
+  logPrint("line = " + ARG_LINE);
+}
+
+/// Tries to find instruction that is located at @file and @line.
+/// Extract parent function of this instruction and returns global id of this
+/// function.
+///
+/// Dies if unable to find instruction.
+std::string APEXPass::moduleFindTargetFunctionOrDie(Module &M,
+                                                    const std::string &file,
+                                                    const std::string &line) {
+  std::vector<Instruction *> target_instructions;
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        if (DILocation *loc = I.getDebugLoc()) {
+          std::string line = std::to_string(loc->getLine());
+          std::string file = loc->getFilename();
+          // std::string dir = loc->getDirectory();
+          if (file == ARG_FILE && line == ARG_LINE) {
+            // Found instruction that matches ARG_FILE+ARG_LINE
+            target_instructions.push_back(&I);
+          }
+        }
+      }
+    }
+  }
+  if (true == target_instructions.empty()) {
+    logPrint("ERROR: Could not locate target instructions!");
+    exit(FATAL_ERROR);
+  }
+  logPrint("Instructions at: file = " + ARG_FILE + ", line = " + ARG_LINE);
+  for (Instruction *I : target_instructions) {
+    I->dump();
+  }
+  return target_instructions.back()->getFunction()->getGlobalIdentifier();
+}
+
 /// Goes over all functions in module. If there is some function in module
 /// that is not in the @path, put it for removal along it all its dependencies.
 /// Note: Functions that are in @PROTECTED_FCNS, will NOT be removed.
@@ -1200,12 +1254,12 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
     logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
   }
 
-  logPrint("\nFinding chosen call instruction to @" + ARG_TARGET_FCN +
-           " inside @" + chosen_caller->getGlobalIdentifier() + ":");
+  logPrint("\nFinding chosen call instruction to target function inside @" +
+           chosen_caller->getGlobalIdentifier() + ":");
   Instruction *chosen_instruction = nullptr;
   {
-    // Now that we have function that should call @ARG_TARGET_FCN, we search
-    // inside for call instruction to @ARG_TARGET_FCN.
+    // Now that we have function that should call @target_function, we search
+    // inside for call instruction to @target_function.
     for (auto &BB : *chosen_caller) {
       for (auto &&I : BB) {
         if (isa<CallInst>(I)) {
@@ -1221,7 +1275,7 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
       logPrint("ERROR: Could not find chosen instruction.");
       exit(-1);
     }
-    logPrint("- call instruction to @" + ARG_TARGET_FCN + " found");
+    logPrint("- call instruction to target function found");
   }
 
   logPrint("\nSearching for insertion point (that is, instruction after chosen "
