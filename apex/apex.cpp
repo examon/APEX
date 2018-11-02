@@ -11,8 +11,8 @@
 
 /// Running on each module.
 bool APEXPass::runOnModule(Module &M) {
-  //  logPrintUnderline("\nInitial Module Dump:");
-  //  logDumpModule(M);
+  logPrintUnderline("Initial Module Dump:");
+  logDumpModule(M);
 
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
@@ -21,41 +21,44 @@ bool APEXPass::runOnModule(Module &M) {
   std::string source_function = "main"; // TODO: Figure out entry automaticall?
   std::string target_function = ""; // This is going to be initialized later.
 
-  logPrintUnderline("Parsing command line arguments:");
+  logPrintUnderline("Parsing command line arguments.");
   moduleParseCmdLineArgsOrDie();
 
-  logPrintUnderline("Locating target instructions:");
-  // TODO: Store target instruction.
-  target_function = moduleFindTargetFunctionOrDie(M, ARG_FILE, ARG_LINE);
+  logPrintUnderline("Locating target instructions.");
+  std::vector<Instruction *> target_instructions =
+      moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE);
+  target_function =
+      target_instructions.back()->getFunction()->getGlobalIdentifier();
+  logPrint("\nTarget function: " + target_function);
 
-  // Initialize dg. This runs analysis and computes dependencies.
+  logPrintUnderline(
+      "Initializing dg. Calculating control and data dependencies.");
   dgInit(M, dg);
 
-  // Initialize apex_dg, so we have dependencies stored in neat little graph.
+  logPrintUnderline("Extracting data from dg. Building apex dependency graph.");
   apexDgInit(apex_dg);
-  //  apexDgPrint(apex_dg, true);
-  apexDgPrintDataDependeniesCompact(apex_dg);
 
-  // Use @apex_dg and make graph only out of data dependencies.
-  // Store everything back into the @apex_dg.
-  apexDgMakeGraph(apex_dg);
-  //  apexDgPrintGraph(apex_dg);
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing data dependencies from apex_dg.");
+    apexDgPrintDataDependeniesCompact(apex_dg);
+  }
 
-  // Create call graph from module.
-  createCallGraph(M, source_function, call_graph);
-  //  printCallGraph(call_graph);
+  logPrintUnderline(
+      "Building callgraph with root at function: " + source_function + ".");
+  createCallGraphOrDie(M, source_function, call_graph);
 
-  // Find path from @source to @target in the @callgraph. Save it to @path.
-  findPath(call_graph, source_function, target_function, path);
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing callgraph.");
+    printCallGraph(call_graph);
+  }
+
+  logPrintUnderline("Finding path from @" + source_function + " to @" +
+                    target_function);
+  findPathOrDie(call_graph, source_function, target_function, path);
+
+  logPrintUnderline("Printing path from @" + source_function + " to @" +
+                    target_function);
   printPath(path, source_function, target_function);
-
-  // Put exit call before selected @target function call.
-  //  moduleInsertExitAfterTarget(M, path, target_function);
-
-  // Resolve data dependencies for functions in @path.
-  // TODO: @y should be added to deps when target=@n
-  //  updatePathAddDependencies(path, apex_dg);
-  //  printPath(path, source_function, target_function);
 
   logPrintUnderline("Dependency resolver: START");
   // Investigate each function in @path.
@@ -82,7 +85,7 @@ bool APEXPass::runOnModule(Module &M) {
         }
 
         // We care if @I is calling non protected function.
-        if (true == functionIsProtected(called_fcn)) {
+        if (functionIsProtected(called_fcn)) {
           logPrint(" (protected)");
           continue;
         }
@@ -96,7 +99,7 @@ bool APEXPass::runOnModule(Module &M) {
           std::string apex_fcn_name = apex_fcn.value->getName();
           if (apex_fcn_name == fcn_in_path->getGlobalIdentifier()) {
             for (APEXDependencyNode apex_node : apex_fcn.nodes) {
-              if (true == isa<CallInst>(apex_node.value)) {
+              if (isa<CallInst>(apex_node.value)) {
                 CallInst *node_inst = cast<CallInst>(apex_node.value);
                 Function *node_called_fcn = node_inst->getCalledFunction();
                 if (node_called_fcn == called_fcn) {
@@ -134,16 +137,22 @@ bool APEXPass::runOnModule(Module &M) {
 
     logPrint("\n---\n");
   }
-
   printPath(path, source_function, target_function);
 
-  // Remove all functions (along with dependencies) that are not in the @path.
-  // Excluding functions in @PROTECTED_FCNS.
-  //    moduleRemoveFunctionsNotInPath(M, apex_dg, path);
+  // TODO: ERROR: inlinable function call in a function with debug info must
+  // have a !dbg location
+  // TODO: Need to setuo DebugLoc to the instruction?
+  //  logPrintUnderline("Inserting exit call before @target_instruction.");
+  //  moduleInsertExitAfterTarget(M, path, target_function);
 
-  //  logPrintUnderline("Final Module Dump:");
-  //  M.dump();
+  //  logPrintUnderline("Removing functions (along with dependencies) that do
+  //  not affect the @path and are not in the @PROTECTED_FCNS.");
+  //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
+
+  logPrintUnderline("Final Module Dump:");
+  logDumpModule(M);
   logPrintUnderline("APEXPass END");
+
   return true;
 }
 
@@ -172,8 +181,6 @@ void APEXPass::logPrintFlat(const std::string &message) { errs() << message; }
 
 /// Dumps whole module M.
 void APEXPass::logDumpModule(const Module &M) {
-  std::string module_name = M.getModuleIdentifier();
-  logPrintUnderline("module: " + module_name);
   M.dump();
   logPrint("");
 }
@@ -188,75 +195,6 @@ void APEXPass::functionVectorFlatPrint(
     logPrintFlat(function->getGlobalIdentifier() + ", ");
   }
   logPrint("");
-}
-
-/// Prints contents of the vector functions.
-void APEXPass::functionListFlatPrint(const std::list<Function *> &functions) {
-  for (const Function *function : functions) {
-    logPrintFlat(function->getGlobalIdentifier() + ", ");
-  }
-  logPrint("");
-}
-
-/// Takes pointer to function F, iterates over instructions calling this
-/// function and removes these instructions.
-///
-/// Returns: Number of removed instructions, -1 in case of error.
-int APEXPass::functionRemoveCalls(APEXDependencyGraph &apex_dg,
-                                  const Function *F) {
-  int calls_removed = 0;
-
-  if (nullptr == F) {
-    return -1;
-  }
-
-  std::string fcn_name = F->getGlobalIdentifier();
-
-  logPrint("- removing function calls to: " + F->getGlobalIdentifier());
-  for (const Use &use : F->uses()) {
-    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      std::string message = "- in: ";
-      message += UserInst->getFunction()->getName();
-      message += "; removing call instruction to: ";
-      message += F->getName();
-
-      // TODO: I don't know why this needs to be here.
-      // TODO: If it is outside, e.g. in the functionRemove(), it segfaults.
-      // TODO: Needs refactoring. This is retarded.
-      //      functionRemoveDependencies(apex_dg, fcn_name);
-
-      calls_removed++;
-    } else {
-      return -1;
-    }
-  }
-  return calls_removed;
-}
-
-/// Takes pointer to a function F, removes all calls to this function and then
-/// removes function F itself.
-///
-/// Returns: 0 if successful or -1 in case of error.
-int APEXPass::functionRemove(APEXDependencyGraph &apex_dg, Function *F) {
-  if (nullptr == F) {
-    return -1;
-  }
-  std::string fcn_id = F->getGlobalIdentifier();
-
-  logPrint("functionRemove(): " + fcn_id);
-
-  // When we are calling this, all calls should be already deleted.
-  if (functionRemoveCalls(apex_dg, F) < 0) {
-    return -1;
-  }
-
-  std::string message = "removing function: ";
-  message += fcn_id;
-  logPrint(message);
-
-  F->eraseFromParent();
-  logPrint("- done\n");
-  return 0;
 }
 
 /// Collects functions that call function F into vector callers.
@@ -356,50 +294,49 @@ bool APEXPass::functionInPath(Function *F,
 // Callgraph utilities
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Creates callgraph from module M, starting from the function with global id
-/// specified in root.
+/// Creates callgraph from module @M, starting from the function with global id
+/// specified in the @root.
 ///
-/// Callgraph is saved in vector callgraph in the pairs of the following
+/// Callgraph is saved in the vector @callgraph as the pairs of the following
 /// format:
 /// <caller function, vector of called functions>.
 ///
-/// Returns: 0 in case of success, -1 if error.
-int APEXPass::createCallGraph(
+/// Dies if:
+/// - unable to find function with @root global ID.
+/// - unable to collect target callees when building callgraph.
+int APEXPass::createCallGraphOrDie(
     const Module &M, const std::string &root,
     std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
-  logPrintUnderline("createCallGraph(): Building call graph");
 
   Function *root_fcn = M.getFunction(root);
   if (nullptr == root_fcn) {
-    logPrint("- root function should not be nullptr after collecting [ERROR]");
-    return -1;
+    logPrint("ERROR : Root function should not be nullptr!");
+    exit(FATAL_ERROR);
   }
 
-  { // Construct call graph.
-    std::vector<Function *> queue;
-    queue.push_back(root_fcn);
+  std::vector<Function *> queue;
+  queue.push_back(root_fcn);
 
-    while (false == queue.empty()) {
-      Function *node = queue.back();
-      queue.pop_back();
+  while (false == queue.empty()) {
+    Function *node = queue.back();
+    queue.pop_back();
 
-      // Find call functions that are called by the node.
-      std::vector<Function *> node_callees;
-      if (functionGetCallees(node, node_callees) < 0) {
-        logPrint("- failed to collect target callees [ERROR]");
-        return -1;
-      }
+    // Find call functions that are called by the @node.
+    std::vector<Function *> node_callees;
+    if (functionGetCallees(node, node_callees) < 0) {
+      logPrint("ERROR: Failed to collect target callees!");
+      exit(FATAL_ERROR);
+    }
 
-      // Make caller->callees pair and save it.
-      std::pair<Function *, std::vector<Function *>> caller_callees;
-      caller_callees.first = node;
-      caller_callees.second = node_callees;
-      callgraph.push_back(caller_callees);
+    // Make caller->callees pair and save it.
+    std::pair<Function *, std::vector<Function *>> caller_callees;
+    caller_callees.first = node;
+    caller_callees.second = node_callees;
+    callgraph.push_back(caller_callees);
 
-      // Put callees to queue, they will be examined next.
-      for (Function *callee : node_callees) {
-        queue.push_back(callee);
-      }
+    // Put callees to queue, they will be examined next.
+    for (Function *callee : node_callees) {
+      queue.push_back(callee);
     }
   }
 
@@ -407,12 +344,10 @@ int APEXPass::createCallGraph(
   return 0;
 }
 
-/// Prints callgraph.
+/// Prints callgraph that is stored in the @callgraph.
 void APEXPass::printCallGraph(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph) {
-  logPrintUnderline("Printing callgraph");
-
   for (auto &caller_callees : callgraph) {
     std::string caller = caller_callees.first->getGlobalIdentifier();
     std::string callees = " -> ";
@@ -427,21 +362,19 @@ void APEXPass::printCallGraph(
   }
 }
 
-/// Uses BFS to find path in @callgraph from @source to @target
+/// Uses BFS to find path in the @callgraph from @source to @target
 /// (both are global Function IDs).
 ///
 /// Result is stored in the @final_path.
 ///
-/// Returns: 0 in success, -1 if error.
-int APEXPass::findPath(
+/// Dies if unable to find source node.
+int APEXPass::findPathOrDie(
     const std::vector<std::pair<Function *, std::vector<Function *>>>
         &callgraph,
     const std::string &source, const std::string &target,
     std::vector<Function *> &final_path) {
-  logPrintUnderline("findPath(): Finding path from @" + source + " to @" +
-                    target);
 
-  logPrint("Searching for @" + source + " function in callgraph:");
+  logPrint("Searching for the source node:");
   const std::pair<Function *, std::vector<Function *>> *source_node = nullptr;
   {
     for (auto &node_neighbours : callgraph) {
@@ -452,15 +385,14 @@ int APEXPass::findPath(
       }
     }
     if (nullptr == source_node) {
-      logPrint("ERROR: Could not find source function.");
-      return -1;
+      logPrint("ERROR: Could not find source node!");
+      exit(FATAL_ERROR);
     } else {
       logPrint("- done");
     }
   }
 
-  logPrint("\nRunning BFS to find path from @" + source + " to @" + target +
-           ":");
+  logPrint("Running BFS to find path from @" + source + " to @" + target + ":");
   std::map<Function *, std::vector<Function *>> function_path;
   {
     std::vector<std::pair<Function *, std::vector<Function *>>> queue;
@@ -503,7 +435,7 @@ int APEXPass::findPath(
     logPrint("- done");
   }
 
-  logPrint("\nReconstructing and storing @" + source + " -> @" + target +
+  logPrint("Reconstructing and storing @" + source + " -> @" + target +
            " path to the @final_path:");
   {
     for (auto &node_path : function_path) {
@@ -521,11 +453,9 @@ int APEXPass::findPath(
   }
 }
 
-/// Prints path.
+/// Prints path from @source to @target (both are function global IDs).
 void APEXPass::printPath(const std::vector<Function *> &path,
                          const std::string &source, const std::string &target) {
-  logPrintUnderline("printPath(): " + source + " -> " + target);
-
   for (auto &node : path) {
     logPrint(node->getGlobalIdentifier());
   }
@@ -536,8 +466,6 @@ void APEXPass::printPath(const std::vector<Function *> &path,
 
 /// Initializes dg and calculates control & data dependencies.
 void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
-  logPrintUnderline("dgInit(): Building dependence graph");
-
   // The reasoning why everything below needs to be here:
   //
   // In order to get data dependencies, I've replicated
@@ -560,26 +488,26 @@ void APEXPass::dgInit(Module &M, LLVMDependenceGraph &dg) {
 // apex dg utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Extracts data from dg and stores them into apex_dg structure.
+/// Extracts data from dg and stores them into @apex_dg structures.
 ///
-/// Caution: dgInit() has to be called before apexDgInit(), dg needs to be
-///          initialized in for this to properly work -> CF map will be empty
+/// Caution: @dgInit() has to be called before @apexDgInit(), dg needs to be
+///          initialized in for this to properly work, otherwise
+///          CF map will be empty.
 void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("apexDgInit(): Building apex dependency graph");
-
   const std::map<llvm::Value *, LLVMDependenceGraph *> &CF =
-      getConstructedFunctions(); // Need to call this (dg reasons...).
+      dg::getConstructedFunctions(); // Need to call this (dg reasons).
 
+  logPrint("Initializing @apex_dg structures:");
   for (auto &function_dg : CF) {
     APEXDependencyFunction apex_function;
     apex_function.value = function_dg.first;
 
     for (auto &value_block : function_dg.second->getBlocks()) {
-      // We do not care about blocks, we care about function:node/istruction
+      // We do not care about blocks, we care about function:node
       // relationship.
       for (auto &node : value_block.second->getNodes()) {
-        // Create node/instruction structure and fill it with control/data
-        // dependencies that is has to other nodes.
+        // Create node (AKA instruction) structure and fill it with
+        // control & data dependencies to other nodes.
         APEXDependencyNode apex_node;
         apex_node.node = node;
         apex_node.value = node->getValue();
@@ -590,7 +518,16 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
     }
     apex_dg.functions.push_back(apex_function);
   }
+  logPrint("- done");
 
+  logPrint("Storing data dependencies into @apex_dg structures:");
+  for (APEXDependencyFunction &f : apex_dg.functions) {
+    for (APEXDependencyNode &n : f.nodes) {
+      apex_dg.node_data_dependencies_map[n.node] = n.data_dependencies;
+      apex_dg.node_rev_data_dependencies_map[n.node] = n.rev_data_dependencies;
+      apex_dg.node_function_map[n.node] = &f;
+    }
+  }
   logPrint("- done");
 }
 
@@ -620,81 +557,8 @@ void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
   }
 }
 
-/// Pretty prints APEXDependencyGraph structure.
-void APEXPass::apexDgPrint(APEXDependencyGraph &apex_dg, bool only_data) {
-  logPrintUnderline("APEXDependencyGraph");
-  logPrint("== [functions dump]:");
-
-  for (APEXDependencyFunction &function : apex_dg.functions) {
-    // Print function info.
-    std::string function_name = function.value->getName();
-    logPrintFlat("   == function [" + function_name + "] value address: ");
-    errs() << function.value << "\n";
-
-    // Print node info.
-    logPrint("\n      = [nodes dump]:");
-    for (APEXDependencyNode &node : function.nodes) {
-      // Dump node value address.
-      logPrintFlat("        = node value address: ");
-      errs() << node.value;
-      logPrint("");
-
-      // Dump node values, so we can see instruction itself and not only
-      // address.
-      logPrintFlat("        = node value: ");
-      node.value->dump();
-      logPrint("");
-
-      // Print dependencies.
-      if (false == only_data) {
-        logPrint("          - [cd]:");
-        for (LLVMNode *cd : node.control_depenencies) {
-          logPrintFlat("             - ");
-          std::string cd_name = cd->getValue()->getName();
-          errs() << cd->getValue() << " [" << cd_name << "]\n";
-        }
-      }
-
-      if (false == only_data) {
-        logPrint("          - [rev cd]:");
-        for (LLVMNode *rev_cd : node.rev_control_depenencies) {
-          logPrintFlat("            - ");
-          std::string rev_cd_name = rev_cd->getValue()->getName();
-          errs() << rev_cd->getValue() << " [" << rev_cd_name << "]\n";
-        }
-      }
-
-      logPrint("          - [dd]:");
-      for (LLVMNode *dd : node.data_dependencies) {
-        logPrintFlat("            - ");
-        std::string dd_name = dd->getValue()->getName();
-        errs() << dd->getValue() << " [" << dd_name << "]\n";
-
-        if (only_data && dd_name.size() == 0) {
-          dd->getValue()->dump();
-        }
-      }
-
-      logPrint("          - [rev dd]:");
-      for (LLVMNode *rev_dd : node.rev_data_dependencies) {
-        logPrintFlat("            - ");
-        std::string rev_dd_name = rev_dd->getValue()->getName();
-        errs() << rev_dd->getValue() << " [" << rev_dd_name << "]\n";
-
-        if (only_data && rev_dd_name.size() == 0) {
-          rev_dd->getValue()->dump();
-        }
-      }
-
-      logPrint("");
-    }
-  }
-}
-
-/// Pretty prints apex_dg, but only with data dependencies.
+/// Pretty prints @apex_dg, but only with data dependencies.
 void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("APEXDependencyGraph : data dependencies");
-
   for (APEXDependencyFunction &function : apex_dg.functions) {
     std::string fcn_name = function.value->getName();
     logPrint("\n===> " + fcn_name);
@@ -713,41 +577,6 @@ void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
         rev_dd->getValue()->dump();
       }
     }
-  }
-}
-
-/// Takes apex_dg, makes graph out of data dependencies between nodes
-/// and stores this graph into apex_dg.graph variable.
-void APEXPass::apexDgMakeGraph(APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("apexDgMakeGraph(): building data dependencies graph");
-
-  for (APEXDependencyFunction &f : apex_dg.functions) {
-    for (APEXDependencyNode &n : f.nodes) {
-      apex_dg.node_data_dependencies_map[n.node] = n.data_dependencies;
-      apex_dg.node_rev_data_dependencies_map[n.node] = n.rev_data_dependencies;
-      apex_dg.node_function_map[n.node] = &f;
-    }
-  }
-  logPrint("- done");
-}
-
-/// Prints node_data_dependencies_map from the apex_dg structure.
-void APEXPass::apexDgPrintGraph(APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("apexDgPrintGraph():");
-
-  for (auto &node_dependencies : apex_dg.node_rev_data_dependencies_map) {
-    errs() << "KEY: " << node_dependencies.first << "\n";
-    node_dependencies.first->getValue()->dump();
-    StringRef fcn_name =
-        apex_dg.node_function_map[node_dependencies.first]->value->getName();
-    errs() << "IN FCN: " << fcn_name << "\n";
-    logPrint("");
-    for (LLVMNode *dd : node_dependencies.second) {
-      errs() << "    *** " << dd << "\n";
-      dd->getValue()->dump();
-      logPrint("");
-    }
-    logPrint("===");
   }
 }
 
@@ -810,7 +639,6 @@ void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
 void APEXPass::apexDgNodeResolveRevDependencies(
     std::vector<Function *> &path, APEXDependencyGraph &apex_dg,
     const APEXDependencyNode &node) {
-
   for (auto n : apex_dg.node_rev_data_dependencies_map) {
     if (n.first->getValue() == node.value) {
       // @n.first is LLVMNode * that we want
@@ -857,102 +685,6 @@ void APEXPass::apexDgNodeResolveRevDependencies(
   }
 }
 
-/// Investigates possible dependencies that may functions in @path have.
-/// In case there are some dependencies, @path is updated (that is,
-/// additional functions are added).
-/*
-void APEXPass::updatePathAddDependencies(std::vector<Function *> &path,
-                                         APEXDependencyGraph &apex_dg) {
-  logPrintUnderline("updatePathAddDependencies(): Calculating dependencies on "
-                    "@path. Possibly adding function to the @path.");
-
-  // Make list out of path, so we can have pop_front().
-  std::list<Function *> invesigation_list(path.begin(), path.end());
-
-  // Go over function in investigation list and figure out if they have
-  // any dependencies.
-  while (false == invesigation_list.empty()) {
-    logPrintFlat("path: ");
-    functionVectorFlatPrint(path);
-    logPrintFlat("investigation_list: ");
-    functionListFlatPrint(invesigation_list);
-
-    // Take front element from @investigation_list and investigate dependencies.
-    Function *fcn_to_investigate = invesigation_list.front();
-    invesigation_list.pop_front();
-
-    logPrint("investigating: " + fcn_to_investigate->getGlobalIdentifier());
-
-    // Take a closer look at instructions of @fcn_to_investigate.
-    for (auto &BB : *fcn_to_investigate) {
-      for (auto &I : BB) {
-
-        // We care only about call instructions.
-        if (false == isa<CallInst>(I)) {
-          continue;
-        }
-
-        // Ok, @I is call instruction.
-        CallInst *call_inst = cast<CallInst>(&I);
-        Function *called_fcn = call_inst->getCalledFunction();
-
-        logPrint("- " + fcn_to_investigate->getGlobalIdentifier() +
-                 " is calling: " + called_fcn->getGlobalIdentifier());
-
-        // Dependencies resolution for @I from here.
-        for (Function *path_function : path) {
-          // We care only if @I is call instruction into some function that
-          // is in @path.
-          if (called_fcn != path_function) {
-            continue;
-          }
-
-          // Ok, so @current_fcn is calling @called_fcn and @called_fcn
-          // is in @path.
-
-          logPrint("-- " + called_fcn->getGlobalIdentifier() + " is in @path");
-          // Now, investigate if call to @called_fcn has some data
-          // dependencies (that are function calls), and add those
-          // potential function calls to the path, so the function
-          // that is going to be called is not removed.
-
-          // Figure out which APEXDependencyFunction in @apex_dg is
-          // @current_fcn.
-          for (APEXDependencyFunction &apex_dg_fcn : apex_dg.functions) {
-            std::string apex_dg_fcn_name = apex_dg_fcn.value->getName();
-            if (fcn_to_investigate->getGlobalIdentifier() != apex_dg_fcn_name) {
-              continue;
-            }
-
-            // We have our APEXDependencyFunction.
-            // Now we need to find which node (AKA instruction) is calling
-            // @called_fcn.
-            for (APEXDependencyNode &node : apex_dg_fcn.nodes) {
-              // We care only about call instructions.
-              if (false == isa<CallInst>(node.value)) {
-                continue;
-              }
-
-              // Ok, so @node.value is some call instruction. Now figure out
-              // if it is the one that calls @called_fcn.
-              CallInst *node_inst = cast<CallInst>(node.value);
-              Function *node_called_fcn = node_inst->getCalledFunction();
-              if (node_called_fcn != called_fcn) {
-                continue;
-              }
-
-              apexDgNodeResolveRevDependencies(path, apex_dg, node);
-              apexDgNodeResolveDependencies(path, apex_dg, node);
-            }
-          }
-        }
-      }
-    }
-    logPrint("");
-  }
-}
- */
-
 /// Take @node and find all data dependencies that form the chain.
 /// Store these dependencies in the @dependencies vector.
 // TODO: Refactor this function. It is copy-paste code atm.
@@ -975,7 +707,7 @@ void APEXPass::apexDgFindDataDependencies(
           new_dependency = false;
         }
       }
-      if (true == new_dependency) {
+      if (new_dependency) {
         data_dependencies.push_back(curr);
       }
 
@@ -1000,7 +732,7 @@ void APEXPass::apexDgFindDataDependencies(
           new_dependency = false;
         }
       }
-      if (true == new_dependency) {
+      if (new_dependency) {
         rev_data_dependencies.push_back(curr);
       }
 
@@ -1024,14 +756,14 @@ void APEXPass::updatePathAddDependencies(
     std::vector<Function *> &path) {
   for (LLVMNode *dd : dependencies) {
     dd->getValue()->dump();
-    if (true == isa<CallInst>(dd->getValue())) {
+    if (isa<CallInst>(dd->getValue())) {
       logPrintFlat("Dependency is CALL to: ");
 
       CallInst *dd_call_inst = cast<CallInst>(dd->getValue());
       Function *dd_called_fcn = dd_call_inst->getCalledFunction();
       logPrintFlat(dd_called_fcn->getGlobalIdentifier());
 
-      if (true == functionIsProtected(dd_called_fcn)) {
+      if (functionIsProtected(dd_called_fcn)) {
         logPrint(" (protected)");
         continue;
       }
@@ -1051,7 +783,7 @@ void APEXPass::updatePathAddDependencies(
 // Module utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Parses command line arguments
+/// Parses command line arguments from opt.
 ///
 /// Dies if arguments are missing or are in from format.
 void APEXPass::moduleParseCmdLineArgsOrDie(void) {
@@ -1060,14 +792,13 @@ void APEXPass::moduleParseCmdLineArgsOrDie(void) {
   logPrint("line = " + ARG_LINE);
 }
 
-/// Tries to find instruction that is located at @file and @line.
-/// Extract parent function of this instruction and returns global id of this
-/// function.
+/// Tries to find instructions that are located at @file and @line.
+/// (this can be one or multiple instructions).
 ///
-/// Dies if unable to find instruction.
-std::string APEXPass::moduleFindTargetFunctionOrDie(Module &M,
-                                                    const std::string &file,
-                                                    const std::string &line) {
+/// Dies if unable to find instructions.
+std::vector<Instruction *>
+APEXPass::moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
+                                            const std::string &line) {
   std::vector<Instruction *> target_instructions;
   for (auto &F : M) {
     for (auto &BB : F) {
@@ -1084,15 +815,19 @@ std::string APEXPass::moduleFindTargetFunctionOrDie(Module &M,
       }
     }
   }
-  if (true == target_instructions.empty()) {
+
+  if (target_instructions.empty()) {
     logPrint("ERROR: Could not locate target instructions!");
     exit(FATAL_ERROR);
   }
+
   logPrint("Instructions at: file = " + ARG_FILE + ", line = " + ARG_LINE);
+  logPrint("");
   for (Instruction *I : target_instructions) {
     I->dump();
   }
-  return target_instructions.back()->getFunction()->getGlobalIdentifier();
+
+  return target_instructions;
 }
 
 /// Goes over all functions in module. If there is some function in module
@@ -1101,9 +836,6 @@ std::string APEXPass::moduleFindTargetFunctionOrDie(Module &M,
 void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
                                               APEXDependencyGraph &apex_dg,
                                               std::vector<Function *> &path) {
-  logPrintUnderline("moduleRemoveFunctionsNotInPath(): Removing functions that "
-                    "do not affect @path.");
-
   logPrint("Collecting functions that are going to be removed:");
   std::vector<Function *> functions_to_be_removed;
   {
@@ -1124,7 +856,7 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
         }
       }
 
-      if (true == module_fcn_to_be_removed) {
+      if (module_fcn_to_be_removed) {
         functions_to_be_removed.push_back(&module_fcn);
       }
     }
@@ -1212,9 +944,6 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
 void APEXPass::moduleInsertExitAfterTarget(Module &M,
                                            const std::vector<Function *> &path,
                                            const std::string &target_id) {
-  logPrintUnderline("moduleInsertExitBeforeTarget(): Inserting exit call "
-                    "before target instruction.");
-
   logPrint("Getting/picking callsite for @" + target_id);
   Function *target_fcn = M.getFunction(target_id);
   {

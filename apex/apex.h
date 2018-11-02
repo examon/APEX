@@ -32,6 +32,9 @@
 using namespace llvm;
 using namespace dg;
 
+/// For printing additional debug information.
+bool VERBOSE_DEBUG = false;
+
 /// Error code when we want to crash APEXPass.
 int FATAL_ERROR = -1;
 
@@ -40,16 +43,6 @@ std::vector<std::string> PROTECTED_FCNS = {"lib_test", "lib_exit", "exit",
                                            "printf", "llvm.dbg.declare"};
 
 /// Command line arguments for opt.
-/*
-cl::opt<std::string> source_function("source",
-                                    cl::desc("Specify source function."),
-                                    cl::value_desc("function name"));
-
-cl::opt<std::string> target_function("target",
-                                    cl::desc("Specify target function."),
-                                    cl::value_desc("function name"));
-*/
-
 cl::opt<std::string> ARG_FILE(
     "file", cl::desc("Filename in relative path from to the launching script."),
     cl::value_desc("file name (e.g. code/main.c)"));
@@ -99,9 +92,6 @@ private:
 
   // Function utilities.
   void functionVectorFlatPrint(const std::vector<Function *> &functions);
-  void functionListFlatPrint(const std::list<Function *> &functions);
-  int functionRemoveCalls(APEXDependencyGraph &apex_dg, const Function *F);
-  int functionRemove(APEXDependencyGraph &apex_dg, Function *F);
   int functionGetCallers(const Function *F, std::vector<Function *> &callers);
   int functionGetCallees(const Function *F, std::vector<Function *> &callees);
   void functionCollectDependencies(APEXDependencyGraph &apex_dg,
@@ -111,16 +101,17 @@ private:
   bool functionInPath(Function *F, const std::vector<Function *> &path);
 
   // Callgraph utilities.
-  int createCallGraph(
+  int createCallGraphOrDie(
       const Module &M, const std::string &root,
       std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph);
   void printCallGraph(
       const std::vector<std::pair<Function *, std::vector<Function *>>>
           &callgraph);
-  int findPath(const std::vector<std::pair<Function *, std::vector<Function *>>>
-                   &callgraph,
-               const std::string &source, const std::string &target,
-               std::vector<Function *> &final_path);
+  int findPathOrDie(
+      const std::vector<std::pair<Function *, std::vector<Function *>>>
+          &callgraph,
+      const std::string &source, const std::string &target,
+      std::vector<Function *> &final_path);
   void printPath(const std::vector<Function *> &path, const std::string &source,
                  const std::string &target);
 
@@ -132,16 +123,12 @@ private:
   void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
   void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
   void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
-  void apexDgMakeGraph(APEXDependencyGraph &apex_dg);
-  void apexDgPrintGraph(APEXDependencyGraph &apex_dg);
   void apexDgNodeResolveDependencies(std::vector<Function *> &path,
                                      APEXDependencyGraph &apex_dg,
                                      const APEXDependencyNode &node);
   void apexDgNodeResolveRevDependencies(std::vector<Function *> &path,
                                         APEXDependencyGraph &apex_dg,
                                         const APEXDependencyNode &node);
-  //  void updatePathAddDependencies(std::vector<Function *> &path,
-  //                                 APEXDependencyGraph &apex_dg);
   void updatePathAddDependencies(const std::vector<LLVMNode *> &dependencies,
                                  std::vector<Function *> &path);
 
@@ -152,8 +139,9 @@ private:
 
   // Module utilities.
   void moduleParseCmdLineArgsOrDie(void);
-  std::string moduleFindTargetFunctionOrDie(Module &M, const std::string &file,
-                                            const std::string &line);
+  std::vector<Instruction *>
+  moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
+                                    const std::string &line);
   void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
                                       std::vector<Function *> &path);
   void moduleInsertExitAfterTarget(Module &M,
