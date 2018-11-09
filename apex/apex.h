@@ -136,6 +136,8 @@ private:
   apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
                              std::vector<LLVMNode *> &dependencies,
                              std::vector<LLVMNode *> &rev_data_dependencies);
+  void apexDgGetNodeOrDie(const APEXDependencyGraph &apex_dg,
+                          const Instruction *const I, APEXDependencyNode &node);
 
   // Module utilities.
   void moduleParseCmdLineArgsOrDie(void);
