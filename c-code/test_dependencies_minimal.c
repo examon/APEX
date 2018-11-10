@@ -20,12 +20,12 @@ int y (int n) {
 //  return tmp;
 //}
 
-//int z(void) {
-//  printf("z: in\n");
-//  int tmp = 1;
-//  printf("z: out\n");
-//  return tmp;
-//}
+int z(void) {
+  printf("z: in\n");
+  int tmp = 1;
+  printf("z: out\n");
+  return tmp;
+}
 
 int n(void) {
   printf("n: in\n");
@@ -49,8 +49,8 @@ int main(void) {
 //  int z_ret = z();
 //  int z_store = z_ret;
 
-//  int n_ret = n();
-//  int n_store = n_ret;
+  int n_ret = n();
+  int n_store = n_ret;
 
 //  printf("main: out\n");
   return 0;

@@ -19,8 +19,9 @@ bool APEXPass::runOnModule(Module &M) {
   std::vector<Function *> path;
   std::string source_function = "main"; // TODO: Figure out entry automaticall?
   std::string target_function = "";     // Will be properly initialized later.
-  std::vector<Instruction *>
-      target_instructions; // Will be properly initialized later.
+  std::vector<Instruction *> target_instructions;
+  std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+      functions_blocks;
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Initial module dump.");
@@ -67,152 +68,10 @@ bool APEXPass::runOnModule(Module &M) {
   printPath(path, source_function, target_function);
 
   logPrintUnderline("Constructing inner function dependency blocks.");
-  for (auto &F : M) {
-    //
-    //    // TODO: this is for dbg
-    //    if ("main" != F.getGlobalIdentifier()) {
-    //      continue;
-    //    }
+  apexDgComputeFunctionDependencyBlocks(M, apex_dg, functions_blocks);
 
-    if (functionIsProtected(&F)) {
-      continue;
-    }
-    logPrint("- constructing dependency graph for: " + F.getGlobalIdentifier());
-    std::vector<std::vector<LLVMNode *>> dep_blocks;
-    unsigned num_fcn_instructions = 0;
-
-    for (auto &BB : F) {
-
-      std::vector<LLVMNode *> visited;
-      for (auto &I : BB) {
-        num_fcn_instructions++;
-
-        std::vector<LLVMNode *> new_block;
-        APEXDependencyNode apex_node;
-        apexDgGetNodeOrDie(apex_dg, &I, apex_node);
-
-        bool go_to_next_instruction = false;
-
-        // Check if @I is already in some stored block.
-        for (auto &block : dep_blocks) {
-          for (LLVMNode *dep_block_node : block) {
-            if (apex_node.node == dep_block_node) {
-              // @apex_node is already in some @block.
-              // Go investigate directly next instruction.
-              go_to_next_instruction = true;
-            }
-          }
-        }
-        if (go_to_next_instruction) {
-          continue;
-        }
-
-        std::vector<LLVMNode *> queue;
-        queue.push_back(apex_node.node);
-
-        while (false == queue.empty()) {
-          LLVMNode *current = queue.back();
-          queue.pop_back();
-
-          bool already_visited = false;
-          for (LLVMNode *visited_node : visited) {
-            if (current == visited_node) {
-              already_visited = true;
-              break;
-            }
-          }
-          if (already_visited) {
-            continue;
-          }
-
-          visited.push_back(current);
-
-          // Get dependency chain for @current;
-          std::vector<LLVMNode *> data_dependencies;
-          std::vector<LLVMNode *> rev_data_dependencies;
-          apexDgFindDataDependencies(apex_dg, *apex_node.node,
-                                     data_dependencies, rev_data_dependencies);
-          // I think it is enough to consider only data dependencies and
-          // do not care about reverse data dependencies.
-          // Reverse data dependencies contain instructions that are outside
-          // current function and that created problems.
-          std::vector<LLVMNode *> neighbours = data_dependencies;
-
-          bool current_already_stored = false;
-
-          for (LLVMNode *neighbour : neighbours) {
-            bool neighbour_already_stored = false;
-            for (auto &block : dep_blocks) {
-              for (LLVMNode *node : block) {
-                if (neighbour == node) {
-                  neighbour_already_stored = true;
-
-                  for (auto &b : dep_blocks) {
-                    for (LLVMNode *n : b) {
-                      if (current == n) {
-                        current_already_stored = true;
-                      }
-                    }
-                  }
-
-                  if (false == current_already_stored) {
-                    block.push_back(current);
-                    current_already_stored = true;
-                  }
-                }
-              }
-            }
-            if (false == neighbour_already_stored) {
-              queue.push_back(neighbour);
-            }
-          }
-
-          if (false == current_already_stored) {
-            new_block.push_back(current);
-          }
-        }
-
-        if (new_block.size() > 0) {
-          dep_blocks.push_back(new_block);
-        }
-
-        //          logPrint("Blocks:");
-        //          for (auto &block : dep_blocks) {
-        //            logPrint("- block:");
-        //            for (LLVMNode *node : block) {
-        //              node->getValue()->dump();
-        //            }
-        //            logPrint("");
-        //          }
-      }
-    }
-
-    for (auto &block : dep_blocks) {
-      logPrint(" - BLOCK:");
-      for (LLVMNode *node : block) {
-        node->getValue()->dump();
-      }
-    }
-
-    logPrint(" - num of instructions in " + F.getGlobalIdentifier() + ": " +
-             std::to_string(num_fcn_instructions));
-    logPrintFlat(" - num of instructions in @dep_blocks: ");
-    unsigned num_dep_blocks_instructions = 0;
-    for (auto &block : dep_blocks) {
-      num_dep_blocks_instructions += block.size();
-    }
-    logPrint(std::to_string(num_dep_blocks_instructions));
-    assert(num_fcn_instructions == num_dep_blocks_instructions);
-    logPrint("\n");
-
-    // TODO: Instructions in @dep_blocks are out of order.
-  }
-
-  //  for (auto &global : M.getGlobalList()) {
-  //    global.dump();
-  //  }
-
-  exit(0);
+  logPrintUnderline("Dependency blocks between instructions inside functions.");
+  apexDgPrintFunctionDependencyBlocks(functions_blocks);
 
   logPrintUnderline("Dependency resolver: START");
   // Investigate each function in @path.
@@ -295,7 +154,7 @@ bool APEXPass::runOnModule(Module &M) {
 
   // TODO: ERROR: inlinable function call in a function with debug info must
   // have a !dbg location
-  // TODO: Need to setuo DebugLoc to the instruction?
+  // TODO: Need to setup DebugLoc to the instruction?
   //  logPrintUnderline("Inserting exit call before @target_instruction.");
   //  moduleInsertExitAfterTarget(M, path, target_function);
 
@@ -427,7 +286,7 @@ void APEXPass::functionCollectDependencies(
 /// Returns true if function @F is protected.
 /// That is, part of the @PROTECTED_FCNS
 /// Protected functions will not be removed at the end of the APEXPass.
-bool APEXPass::functionIsProtected(Function *F) {
+bool APEXPass::functionIsProtected(const Function *F) {
   for (std::string fcn_id : PROTECTED_FCNS) {
     if (F->getGlobalIdentifier() == fcn_id) {
       return true;
@@ -720,7 +579,7 @@ void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
     logPrint("\n===> " + fcn_name);
     for (APEXDependencyNode &node : function.nodes) {
 
-      logPrintFlat("\n=> node:");
+      logPrintFlat("\n- node:");
       node.value->dump();
       logPrint("[dd]:");
 
@@ -847,7 +706,7 @@ void APEXPass::apexDgNodeResolveRevDependencies(
 void APEXPass::apexDgFindDataDependencies(
     APEXDependencyGraph &apex_dg, LLVMNode &node,
     std::vector<LLVMNode *> &data_dependencies,
-    std::vector<LLVMNode *> &rev_data_dependencies) {
+    std::vector<LLVMNode *> &rev_data_dependencies) const {
   {
     std::vector<LLVMNode *> queue;
     queue.push_back(&node);
@@ -953,10 +812,173 @@ void APEXPass::apexDgGetNodeOrDie(const APEXDependencyGraph &apex_dg,
     }
   }
   logPrintFlat(
-      "ERROR: Could not find the following instruction in the @apex_dg: ");
+      "ERROR: Could not find the following instruction in the @apex_dg."
+      "Maybe it is in function that @dg did not computed dependencies"
+      "(because it is not used, etc.)");
   I->dump();
   exit(FATAL_ERROR);
 }
+
+/// We go over functions that are in @apex_dg and compute for each function
+/// dependencies between instructions. Instructions that are linked via data
+/// dependencies are stored in the @functions_blocks map.
+void APEXPass::apexDgComputeFunctionDependencyBlocks(
+    const Module &M, APEXDependencyGraph &apex_dg,
+    std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+        &function_dependency_blocks) {
+  for (auto &F : M) {
+    logPrint("Constructing dependency blocks for: " + F.getGlobalIdentifier());
+
+    if (functionIsProtected(&F)) {
+      logPrint("- function is protected");
+      continue;
+    }
+
+    bool function_in_apex_dg = false;
+    for (APEXDependencyFunction &apex_fcn : apex_dg.functions) {
+      if (&F == apex_fcn.value) {
+        function_in_apex_dg = true;
+      }
+    }
+    if (false == function_in_apex_dg) {
+      logPrint("- function not in @apex_dg (probably not used, etc.)");
+      continue;
+    }
+
+    std::vector<std::vector<LLVMNode *>> function_blocks;
+    unsigned num_fcn_instructions = 0;
+
+    for (auto &BB : F) {
+
+      std::vector<LLVMNode *> visited;
+      for (auto &I : BB) {
+        num_fcn_instructions++;
+
+        std::vector<LLVMNode *> new_block;
+        APEXDependencyNode apex_node;
+        apexDgGetNodeOrDie(apex_dg, &I, apex_node);
+
+        bool go_to_next_instruction = false;
+
+        // Check if @I is already in some stored block.
+        for (auto &block : function_blocks) {
+          for (LLVMNode *dep_block_node : block) {
+            if (apex_node.node == dep_block_node) {
+              // @apex_node is already in some @block.
+              // Go investigate directly next instruction.
+              go_to_next_instruction = true;
+            }
+          }
+        }
+        if (go_to_next_instruction) {
+          continue;
+        }
+
+        std::vector<LLVMNode *> queue;
+        queue.push_back(apex_node.node);
+
+        while (false == queue.empty()) {
+          LLVMNode *current = queue.back();
+          queue.pop_back();
+
+          bool already_visited = false;
+          for (LLVMNode *visited_node : visited) {
+            if (current == visited_node) {
+              already_visited = true;
+              break;
+            }
+          }
+          if (already_visited) {
+            continue;
+          }
+
+          visited.push_back(current);
+
+          // Get dependency chain for @current;
+          std::vector<LLVMNode *> data_dependencies;
+          std::vector<LLVMNode *> rev_data_dependencies;
+          apexDgFindDataDependencies(apex_dg, *apex_node.node,
+                                     data_dependencies, rev_data_dependencies);
+          // I think it is enough to consider only data dependencies and
+          // do not care about reverse data dependencies.
+          // Reverse data dependencies contain instructions that are outside
+          // current function and that created problems.
+          std::vector<LLVMNode *> neighbours = data_dependencies;
+
+          bool current_already_stored = false;
+
+          for (LLVMNode *neighbour : neighbours) {
+            bool neighbour_already_stored = false;
+            for (auto &block : function_blocks) {
+              for (LLVMNode *node : block) {
+                if (neighbour == node) {
+                  neighbour_already_stored = true;
+
+                  for (auto &b : function_blocks) {
+                    for (LLVMNode *n : b) {
+                      if (current == n) {
+                        current_already_stored = true;
+                      }
+                    }
+                  }
+
+                  if (false == current_already_stored) {
+                    block.push_back(current);
+                    current_already_stored = true;
+                  }
+                }
+              }
+            }
+            if (false == neighbour_already_stored) {
+              queue.push_back(neighbour);
+            }
+          }
+
+          if (false == current_already_stored) {
+            new_block.push_back(current);
+          }
+        }
+
+        if (new_block.size() > 0) {
+          function_blocks.push_back(new_block);
+        }
+      }
+    }
+
+    // Checking if we did not miss any instruction.
+    unsigned num_dep_blocks_instructions = 0;
+    for (auto &block : function_blocks) {
+      num_dep_blocks_instructions += block.size();
+    }
+    assert(num_fcn_instructions == num_dep_blocks_instructions);
+    logPrint("- done: " + std::to_string(num_fcn_instructions) +
+             " instructions in blocks");
+
+    // TODO: Instructions are not in the original order. This may be a problem.
+    // TODO: Sort them here if it would be.
+
+    // Everything should be OK, store computed blocks into storage.
+    function_dependency_blocks[&F] = function_blocks;
+  }
+}
+
+/// Pretty prints @functions_blocks map.
+void APEXPass::apexDgPrintFunctionDependencyBlocks(
+    const std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+        &function_dependency_blocks) {
+  for (auto &function_blocks : function_dependency_blocks) {
+    std::string fcn_id = function_blocks.first->getGlobalIdentifier();
+    logPrint("FUNCTION: " + fcn_id);
+    for (auto &block : function_blocks.second) {
+      logPrint("- BLOCK:");
+      for (auto &node : block) {
+        logPrintFlat("  ");
+        node->getValue()->dump();
+      }
+    }
+    logPrint("");
+  }
+};
 
 // Module utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

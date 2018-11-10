@@ -97,7 +97,7 @@ private:
   void functionCollectDependencies(APEXDependencyGraph &apex_dg,
                                    std::string function_nam,
                                    std::vector<LLVMNode *> &dependencies);
-  bool functionIsProtected(Function *F);
+  bool functionIsProtected(const Function *F);
   bool functionInPath(Function *F, const std::vector<Function *> &path);
 
   // Callgraph utilities.
@@ -132,12 +132,19 @@ private:
   void updatePathAddDependencies(const std::vector<LLVMNode *> &dependencies,
                                  std::vector<Function *> &path);
 
-  void
-  apexDgFindDataDependencies(APEXDependencyGraph &apex_dg, LLVMNode &node,
-                             std::vector<LLVMNode *> &dependencies,
-                             std::vector<LLVMNode *> &rev_data_dependencies);
+  void apexDgFindDataDependencies(
+      APEXDependencyGraph &apex_dg, LLVMNode &node,
+      std::vector<LLVMNode *> &dependencies,
+      std::vector<LLVMNode *> &rev_data_dependencies) const;
   void apexDgGetNodeOrDie(const APEXDependencyGraph &apex_dg,
                           const Instruction *const I, APEXDependencyNode &node);
+  void apexDgComputeFunctionDependencyBlocks(
+      const Module &M, APEXDependencyGraph &apex_dg,
+      std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+          &function_dependency_blocks);
+  void apexDgPrintFunctionDependencyBlocks(
+      const std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+          &function_dependency_blocks);
 
   // Module utilities.
   void moduleParseCmdLineArgsOrDie(void);
