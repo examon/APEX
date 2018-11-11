@@ -39,8 +39,11 @@ bool VERBOSE_DEBUG = false;
 int FATAL_ERROR = -1;
 
 /// Protected functions IDs. These will not be removed by APEXPass.
-std::vector<std::string> PROTECTED_FCNS = {"lib_test", "lib_exit", "exit",
-                                           "printf", "llvm.dbg.declare"};
+std::vector<std::string> PROTECTED_FCNS = {
+    "lib_test", "lib_exit", "exit", // These come from c-code/lib.c.
+    "printf",                       // Maybe remove prints?
+    "llvm.dbg.declare"              // Introduced with debug symbols.
+};
 
 /// Command line arguments for opt.
 cl::opt<std::string> ARG_FILE(
@@ -122,7 +125,7 @@ private:
   void apexDgInit(APEXDependencyGraph &apex_dg);
   void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
   void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
-  void apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg);
+  void apexDgPrintDataDependenciesCompact(APEXDependencyGraph &apex_dg);
   void apexDgNodeResolveDependencies(std::vector<Function *> &path,
                                      APEXDependencyGraph &apex_dg,
                                      const APEXDependencyNode &node);
@@ -145,12 +148,20 @@ private:
   void apexDgPrintFunctionDependencyBlocks(
       const std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
           &function_dependency_blocks);
+  void apexDgConstructBlocksFunctionsCallgraph(
+      const std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+          &function_dependency_blocks,
+      std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+          &blocks_functions_callgraph);
+  void apexDgPrintBlocksFunctionsCallgraph(
+      const std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+          &blocks_functions_callgraph);
 
   // Module utilities.
   void moduleParseCmdLineArgsOrDie(void);
-  std::vector<Instruction *>
-  moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
-                                    const std::string &line);
+  void moduleFindTargetInstructionsOrDie(
+      Module &M, const std::string &file, const std::string &line,
+      std::vector<const Instruction *> &target_instructions);
   void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
                                       std::vector<Function *> &path);
   void moduleInsertExitAfterTarget(Module &M,
@@ -160,6 +171,6 @@ private:
 
 /// Registering our own pass, so it can be ran via opt.
 char APEXPass::ID = 0;
-static RegisterPass<APEXPass> X("apex", "Just a test pass. Work in progress.",
+static RegisterPass<APEXPass> X("apex", "Active code Path EXtractor.",
                                 false /* Only looks at CFG */,
                                 false /* Analysis Pass */);

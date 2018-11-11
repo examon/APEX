@@ -17,11 +17,14 @@ bool APEXPass::runOnModule(Module &M) {
   LLVMDependenceGraph dg;
   std::vector<std::pair<Function *, std::vector<Function *>>> call_graph;
   std::vector<Function *> path;
-  std::string source_function = "main"; // TODO: Figure out entry automaticall?
-  std::string target_function = "";     // Will be properly initialized later.
-  std::vector<Instruction *> target_instructions;
+  std::string source_function_id =
+      "main";                          // TODO: Figure out entry automatically?
+  std::string target_function_id = ""; // Will be properly initialized later.
+  std::vector<const Instruction *> target_instructions;
   std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
-      functions_blocks;
+      function_dependency_blocks;
+  std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+      blocks_functions_callgraph;
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Initial module dump.");
@@ -32,11 +35,10 @@ bool APEXPass::runOnModule(Module &M) {
   moduleParseCmdLineArgsOrDie();
 
   logPrintUnderline("Locating target instructions.");
-  target_instructions =
-      moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE);
-  target_function =
+  moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE, target_instructions);
+  target_function_id =
       target_instructions.back()->getFunction()->getGlobalIdentifier();
-  logPrint("\nTarget function: " + target_function);
+  logPrint("\nTarget function: " + target_function_id);
 
   logPrintUnderline(
       "Initializing dg. Calculating control and data dependencies.");
@@ -47,31 +49,44 @@ bool APEXPass::runOnModule(Module &M) {
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Printing data dependencies from apex_dg.");
-    apexDgPrintDataDependeniesCompact(apex_dg);
+    apexDgPrintDataDependenciesCompact(apex_dg);
   }
 
   logPrintUnderline(
-      "Building callgraph with root at function: " + source_function + ".");
-  createCallGraphOrDie(M, source_function, call_graph);
+      "Building callgraph with root at function: " + source_function_id + ".");
+  createCallGraphOrDie(M, source_function_id, call_graph);
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Printing callgraph.");
     printCallGraph(call_graph);
   }
 
-  logPrintUnderline("Finding path from @" + source_function + " to @" +
-                    target_function);
-  findPathOrDie(call_graph, source_function, target_function, path);
+  logPrintUnderline("Finding path from @" + source_function_id + " to @" +
+                    target_function_id);
+  findPathOrDie(call_graph, source_function_id, target_function_id, path);
 
-  logPrintUnderline("Printing path from @" + source_function + " to @" +
-                    target_function);
-  printPath(path, source_function, target_function);
+  logPrintUnderline("Printing path from @" + source_function_id + " to @" +
+                    target_function_id);
+  printPath(path, source_function_id, target_function_id);
 
-  logPrintUnderline("Constructing inner function dependency blocks.");
-  apexDgComputeFunctionDependencyBlocks(M, apex_dg, functions_blocks);
+  logPrintUnderline("Constructing function dependency blocks.");
+  apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
 
-  logPrintUnderline("Dependency blocks between instructions inside functions.");
-  apexDgPrintFunctionDependencyBlocks(functions_blocks);
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing calculated function dependency blocks.");
+    apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
+  }
+
+  logPrintUnderline("Constructing dependency blocks to functions callgraph.");
+  apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
+                                          blocks_functions_callgraph);
+
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing dependency block to functions callgraph.");
+    apexDgPrintBlocksFunctionsCallgraph(blocks_functions_callgraph);
+  }
+
+  exit(0);
 
   logPrintUnderline("Dependency resolver: START");
   // Investigate each function in @path.
@@ -150,7 +165,7 @@ bool APEXPass::runOnModule(Module &M) {
 
     logPrint("\n---\n");
   }
-  printPath(path, source_function, target_function);
+  printPath(path, source_function_id, target_function_id);
 
   // TODO: ERROR: inlinable function call in a function with debug info must
   // have a !dbg location
@@ -536,11 +551,12 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
   logPrint("- done");
 
   logPrint("Storing data dependencies into @apex_dg structures:");
-  for (APEXDependencyFunction &f : apex_dg.functions) {
-    for (APEXDependencyNode &n : f.nodes) {
-      apex_dg.node_data_dependencies_map[n.node] = n.data_dependencies;
-      apex_dg.node_rev_data_dependencies_map[n.node] = n.rev_data_dependencies;
-      apex_dg.node_function_map[n.node] = &f;
+  for (auto &apex_dg_function : apex_dg.functions) {
+    for (auto &node : apex_dg_function.nodes) {
+      apex_dg.node_data_dependencies_map[node.node] = node.data_dependencies;
+      apex_dg.node_rev_data_dependencies_map[node.node] =
+          node.rev_data_dependencies;
+      apex_dg.node_function_map[node.node] = &apex_dg_function;
     }
   }
   logPrint("- done");
@@ -573,7 +589,8 @@ void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
 }
 
 /// Pretty prints @apex_dg, but only with data dependencies.
-void APEXPass::apexDgPrintDataDependeniesCompact(APEXDependencyGraph &apex_dg) {
+void APEXPass::apexDgPrintDataDependenciesCompact(
+    APEXDependencyGraph &apex_dg) {
   for (APEXDependencyFunction &function : apex_dg.functions) {
     std::string fcn_name = function.value->getName();
     logPrint("\n===> " + fcn_name);
@@ -980,6 +997,50 @@ void APEXPass::apexDgPrintFunctionDependencyBlocks(
   }
 };
 
+/// Takes @function_dependency_blocks that were computed by
+/// @apexDgComputeFunctionDependencyBlocks() and constructs callgraph where
+/// key is some block and value is vector of functions that this block may call.
+void APEXPass::apexDgConstructBlocksFunctionsCallgraph(
+    const std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+        &function_dependency_blocks,
+    std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+        &blocks_functions_callgraph) {
+  for (auto &function_blocks : function_dependency_blocks) {
+    for (auto &block : function_blocks.second) {
+      for (LLVMNode *node : block) {
+        if (isa<CallInst>(node->getValue())) {
+          const CallInst *call_inst = cast<CallInst>(node->getValue());
+          const Function *called_fcn = call_inst->getCalledFunction();
+          // Store call edge from block to function.
+          auto &functions = blocks_functions_callgraph[block];
+          functions.push_back(called_fcn);
+          blocks_functions_callgraph[block] = functions;
+        }
+      }
+    }
+  }
+  logPrint("- done");
+}
+
+/// Pretty prints dependency blocks to functions callgraph.
+void APEXPass::apexDgPrintBlocksFunctionsCallgraph(
+    const std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+        &blocks_functions_callgraph) {
+  for (const auto &block_functions : blocks_functions_callgraph) {
+    const Instruction *node_inst =
+        cast<Instruction>(block_functions.first.front()->getValue());
+    logPrint("BLOCK: in " + node_inst->getFunction()->getGlobalIdentifier());
+    for (const auto &node : block_functions.first) {
+      node->getValue()->dump();
+    }
+    logPrint("Calls:");
+    for (const auto &function : block_functions.second) {
+      logPrint("- " + function->getGlobalIdentifier());
+    }
+    logPrint("");
+  }
+}
+
 // Module utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -996,17 +1057,16 @@ void APEXPass::moduleParseCmdLineArgsOrDie(void) {
 /// (this can be one or multiple instructions).
 ///
 /// Dies if unable to find instructions.
-std::vector<Instruction *>
-APEXPass::moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
-                                            const std::string &line) {
-  std::vector<Instruction *> target_instructions;
-  for (auto &F : M) {
-    for (auto &BB : F) {
-      for (auto &I : BB) {
-        if (DILocation *loc = I.getDebugLoc()) {
-          std::string line = std::to_string(loc->getLine());
-          std::string file = loc->getFilename();
-          // std::string dir = loc->getDirectory();
+void APEXPass::moduleFindTargetInstructionsOrDie(
+    Module &M, const std::string &file, const std::string &line,
+    std::vector<const Instruction *> &target_instructions) {
+  for (const auto &F : M) {
+    for (const auto &BB : F) {
+      for (const auto &I : BB) {
+        if (auto const inst_loc_ptr = I.getDebugLoc()) {
+          const std::string line = std::to_string(inst_loc_ptr->getLine());
+          const std::string file = inst_loc_ptr->getFilename();
+          // std::string dir = inst_loc_ptr->getDirectory();
           if (file == ARG_FILE && line == ARG_LINE) {
             // Found instruction that matches ARG_FILE+ARG_LINE
             target_instructions.push_back(&I);
@@ -1023,11 +1083,9 @@ APEXPass::moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
 
   logPrint("Instructions at: file = " + ARG_FILE + ", line = " + ARG_LINE);
   logPrint("");
-  for (Instruction *I : target_instructions) {
-    I->dump();
+  for (const auto inst_ptr : target_instructions) {
+    inst_ptr->dump();
   }
-
-  return target_instructions;
 }
 
 /// Goes over all functions in module. If there is some function in module
