@@ -52,22 +52,23 @@ bool APEXPass::runOnModule(Module &M) {
     apexDgPrintDataDependenciesCompact(apex_dg);
   }
 
-  logPrintUnderline(
-      "Building callgraph with root at function: " + source_function_id + ".");
-  createCallGraphOrDie(M, source_function_id, call_graph);
-
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing callgraph.");
-    printCallGraph(call_graph);
-  }
-
-  logPrintUnderline("Finding path from @" + source_function_id + " to @" +
-                    target_function_id);
-  findPathOrDie(call_graph, source_function_id, target_function_id, path);
-
-  logPrintUnderline("Printing path from @" + source_function_id + " to @" +
-                    target_function_id);
-  printPath(path, source_function_id, target_function_id);
+  //  logPrintUnderline(
+  //      "Building callgraph with root at function: " + source_function_id +
+  //      ".");
+  //  createCallGraphOrDie(M, source_function_id, call_graph);
+  //
+  //  if (VERBOSE_DEBUG) {
+  //    logPrintUnderline("Printing callgraph.");
+  //    printCallGraph(call_graph);
+  //  }
+  //
+  //  logPrintUnderline("Finding path from @" + source_function_id + " to @" +
+  //                    target_function_id);
+  //  findPathOrDie(call_graph, source_function_id, target_function_id, path);
+  //
+  //  logPrintUnderline("Printing path from @" + source_function_id + " to @" +
+  //                    target_function_id);
+  //  printPath(path, source_function_id, target_function_id);
 
   logPrintUnderline("Constructing function dependency blocks.");
   apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
@@ -81,10 +82,57 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
                                           blocks_functions_callgraph);
 
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing dependency block to functions callgraph.");
-    apexDgPrintBlocksFunctionsCallgraph(blocks_functions_callgraph);
+  //  if (VERBOSE_DEBUG) {
+  logPrintUnderline("Printing dependency block to functions callgraph.");
+  apexDgPrintBlocksFunctionsCallgraph(blocks_functions_callgraph);
+  //  }
+
+  logPrintUnderline("Finding path from @" + source_function_id + " to @" +
+                    target_function_id + ".");
+  std::map<std::vector<LLVMNode *> *, std::vector<std::vector<LLVMNode *> *>>
+      block_path;
+  {
+    std::vector<std::vector<LLVMNode *> *> queue;
+    std::vector<std::vector<LLVMNode *> *> visited;
+
+    // Initially push blocks from source function into the @queue.
+    for (auto &block :
+         function_dependency_blocks[M.getFunction(source_function_id)]) {
+      queue.push_back(&block);
+    }
+
+    while (false == queue.empty()) {
+      const auto current_ptr = queue.back();
+      queue.pop_back();
+      visited.push_back(current_ptr);
+
+      // Find if there are calls to other functions that come from the current
+      // block.
+      for (const auto &called_function :
+           blocks_functions_callgraph[*current_ptr]) {
+        // Get blocks for those functions that are called.
+        for (auto &neighbour_block :
+             function_dependency_blocks[called_function]) {
+          block_path[&neighbour_block].push_back(current_ptr);
+
+          bool block_already_visited = false;
+          for (const auto &visited_block_ptr : visited) {
+            if (visited_block_ptr == &neighbour_block) {
+              block_already_visited = true;
+              break;
+            }
+          }
+          // Add non-visited blocks from called function into the queue.
+          if (false == block_already_visited) {
+            queue.push_back(&neighbour_block);
+          }
+        }
+      }
+    }
   }
+
+  // TODO: Find target block via target instructions.
+  // TODO: Reconstruct path to the target block.
 
   exit(0);
 

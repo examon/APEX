@@ -79,6 +79,9 @@ struct APEXDependencyGraph {
   std::map<LLVMNode *, APEXDependencyFunction *> node_function_map;
 };
 
+typedef std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+    FUNCTION_DEPENDENCY_BLOCKS;
+
 /// Actual APEX pass.
 class APEXPass : public ModulePass {
 public:
