@@ -79,9 +79,6 @@ struct APEXDependencyGraph {
   std::map<LLVMNode *, APEXDependencyFunction *> node_function_map;
 };
 
-typedef std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
-    FUNCTION_DEPENDENCY_BLOCKS;
-
 /// Actual APEX pass.
 class APEXPass : public ModulePass {
 public:
@@ -106,33 +103,13 @@ private:
   bool functionIsProtected(const Function *F);
   bool functionInPath(Function *F, const std::vector<Function *> &path);
 
-  void findPath(Module &M,
-                std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
-                    &blocks_functions_callgraph,
-                std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
-                    &function_dependency_blocks,
-                const std::vector<const Instruction *> &target_instructions,
-                const std::string &source_function_id,
-                const std::string &target_function_id,
-                std::vector<std::vector<LLVMNode *>> &path);
-  void printPath(const std::vector<std::vector<LLVMNode *>> &path);
-
   // dg utilities.
   void dgInit(Module &M, LLVMDependenceGraph &dg);
 
   // apex dg utilities.
   void apexDgInit(APEXDependencyGraph &apex_dg);
   void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
-  void apexDgPrint(APEXDependencyGraph &apex_dg, bool verbose);
   void apexDgPrintDataDependenciesCompact(APEXDependencyGraph &apex_dg);
-  void apexDgNodeResolveDependencies(std::vector<Function *> &path,
-                                     APEXDependencyGraph &apex_dg,
-                                     const APEXDependencyNode &node);
-  void apexDgNodeResolveRevDependencies(std::vector<Function *> &path,
-                                        APEXDependencyGraph &apex_dg,
-                                        const APEXDependencyNode &node);
-  void updatePathAddDependencies(const std::vector<LLVMNode *> &dependencies,
-                                 std::vector<Function *> &path);
 
   void apexDgFindDataDependencies(
       APEXDependencyGraph &apex_dg, LLVMNode &node,
@@ -156,7 +133,7 @@ private:
       const std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
           &blocks_functions_callgraph);
 
-  // Module utilities.
+  // Other utilities.
   void moduleParseCmdLineArgsOrDie(void);
   void moduleFindTargetInstructionsOrDie(
       Module &M, const std::string &file, const std::string &line,
@@ -166,6 +143,16 @@ private:
   void moduleInsertExitAfterTarget(Module &M,
                                    const std::vector<Function *> &path,
                                    const std::string &target_id);
+  void findPath(Module &M,
+                std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+                    &blocks_functions_callgraph,
+                std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+                    &function_dependency_blocks,
+                const std::vector<const Instruction *> &target_instructions,
+                const std::string &source_function_id,
+                const std::string &target_function_id,
+                std::vector<std::vector<LLVMNode *>> &path);
+  void printPath(const std::vector<std::vector<LLVMNode *>> &path);
 };
 
 /// Registering our own pass, so it can be ran via opt.

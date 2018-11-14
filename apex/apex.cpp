@@ -242,6 +242,12 @@ bool APEXPass::functionInPath(Function *F,
 // Callgraph utilities
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+/// Finds blocks in the source function and starts exploring
+/// @blocks_functions_callgraph from these blocks using BFS.
+///
+/// Computes path from source function to target function.
+/// Stores results in the @path. @path contains dependency
+/// blocks that are on the execution flow.
 void APEXPass::findPath(
     Module &M,
     std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
@@ -337,6 +343,7 @@ void APEXPass::findPath(
   logPrint("- done");
 }
 
+/// Prints path in the @path.
 void APEXPass::printPath(const std::vector<std::vector<LLVMNode *>> &path) {
   for (const auto block : path) {
     Instruction *i = cast<Instruction>(block.front()->getValue());
@@ -347,174 +354,6 @@ void APEXPass::printPath(const std::vector<std::vector<LLVMNode *>> &path) {
     logPrint("");
   }
 }
-
-/// Creates callgraph from module @M, starting from the function with global id
-/// specified in the @root.
-///
-/// Callgraph is saved in the vector @callgraph as the pairs of the following
-/// format:
-/// <caller function, vector of called functions>.
-///
-/// Dies if:
-/// - unable to find function with @root global ID.
-/// - unable to collect target callees when building callgraph.
-// int APEXPass::createCallGraphOrDie(
-//    const Module &M, const std::string &root,
-//    std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph) {
-//
-//  Function *root_fcn = M.getFunction(root);
-//  if (nullptr == root_fcn) {
-//    logPrint("ERROR : Root function should not be nullptr!");
-//    exit(FATAL_ERROR);
-//  }
-//
-//  std::vector<Function *> queue;
-//  queue.push_back(root_fcn);
-//
-//  while (false == queue.empty()) {
-//    Function *node = queue.back();
-//    queue.pop_back();
-//
-//    // Find call functions that are called by the @node.
-//    std::vector<Function *> node_callees;
-//    if (functionGetCallees(node, node_callees) < 0) {
-//      logPrint("ERROR: Failed to collect target callees!");
-//      exit(FATAL_ERROR);
-//    }
-//
-//    // Make caller->callees pair and save it.
-//    std::pair<Function *, std::vector<Function *>> caller_callees;
-//    caller_callees.first = node;
-//    caller_callees.second = node_callees;
-//    callgraph.push_back(caller_callees);
-//
-//    // Put callees to queue, they will be examined next.
-//    for (Function *callee : node_callees) {
-//      queue.push_back(callee);
-//    }
-//  }
-//
-//  logPrint("- done");
-//  return 0;
-//}
-
-/// Prints callgraph that is stored in the @callgraph.
-// void APEXPass::printCallGraph(
-//    const std::vector<std::pair<Function *, std::vector<Function *>>>
-//        &callgraph) {
-//  for (auto &caller_callees : callgraph) {
-//    std::string caller = caller_callees.first->getGlobalIdentifier();
-//    std::string callees = " -> ";
-//    if (caller_callees.second.empty()) {
-//      callees += "[External/Nothing]";
-//    }
-//    for (auto &callee : caller_callees.second) {
-//      callees += callee->getGlobalIdentifier();
-//      callees += ", ";
-//    }
-//    logPrint(caller + callees);
-//  }
-//}
-
-/// Uses BFS to find path in the @callgraph from @source to @target
-/// (both are global Function IDs).
-///
-/// Result is stored in the @final_path.
-///
-/// Dies if unable to find source node.
-// int APEXPass::findPathOrDie(
-//    const std::vector<std::pair<Function *, std::vector<Function *>>>
-//        &callgraph,
-//    const std::string &source, const std::string &target,
-//    std::vector<Function *> &final_path) {
-//
-//  logPrint("Searching for the source node:");
-//  const std::pair<Function *, std::vector<Function *>> *source_node = nullptr;
-//  {
-//    for (auto &node_neighbours : callgraph) {
-//      Function *node = node_neighbours.first;
-//      if (source == node->getGlobalIdentifier()) {
-//        source_node = &node_neighbours;
-//        break;
-//      }
-//    }
-//    if (nullptr == source_node) {
-//      logPrint("ERROR: Could not find source node!");
-//      exit(FATAL_ERROR);
-//    } else {
-//      logPrint("- done");
-//    }
-//  }
-//
-//  logPrint("Running BFS to find path from @" + source + " to @" + target +
-//  ":"); std::map<Function *, std::vector<Function *>> function_path;
-//  {
-//    std::vector<std::pair<Function *, std::vector<Function *>>> queue;
-//    std::vector<Function *> visited;
-//
-//    queue.push_back(*source_node);
-//
-//    while (false == queue.empty()) {
-//      std::pair<Function *, std::vector<Function *>> current = queue.back();
-//      queue.pop_back();
-//      Function *node = current.first;
-//      std::vector<Function *> neighbours = current.second;
-//
-//      // Store current node as visited.
-//      visited.push_back(node);
-//
-//      for (Function *neighbour : current.second) {
-//        // Store @main->@neighbour path.
-//        function_path[neighbour].push_back(current.first);
-//
-//        // Check if we already visited @neighbour.
-//        bool neighbour_already_visited = false;
-//        for (Function *visited_fcn : visited) {
-//          if (visited_fcn == neighbour) {
-//            neighbour_already_visited = true;
-//            break;
-//          }
-//        }
-//        // Add @neighbour to the queue along with its neighbours if it was
-//        // not visited already.
-//        if (false == neighbour_already_visited) {
-//          for (auto &node_neighbours : callgraph) {
-//            if (node_neighbours.first == neighbour) {
-//              queue.push_back(node_neighbours);
-//            }
-//          }
-//        }
-//      }
-//    }
-//    logPrint("- done");
-//  }
-//
-//  logPrint("Reconstructing and storing @" + source + " -> @" + target +
-//           " path to the @final_path:");
-//  {
-//    for (auto &node_path : function_path) {
-//      // Need to pull @target first.
-//      if (node_path.first->getGlobalIdentifier() == target) {
-//        // We push path that was stored. First node should be @source.
-//        for (Function *node : node_path.second) {
-//          final_path.push_back(node);
-//        }
-//        // Finally, push @target node itself.
-//        final_path.push_back(node_path.first);
-//        logPrint("- done");
-//      }
-//    }
-//  }
-//}
-
-/// Prints path from @source to @target (both are function global IDs).
-// void APEXPass::printPath(const std::vector<Function *> &path,
-//                         const std::string &source, const std::string &target)
-//                         {
-//  for (auto &node : path) {
-//    logPrint(node->getGlobalIdentifier());
-//  }
-//}
 
 // dg utilities
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -637,111 +476,6 @@ void APEXPass::apexDgPrintDataDependenciesCompact(
   }
 }
 
-/// Amazing, we have instruction that is calling some function.
-/// Now check if this instruction has dependencies.
-///
-/// If it has dependencies and any of those is function call
-/// that is not in the @path, add function that it calls to
-/// the path.
-// TODO: Refactor this function.
-void APEXPass::apexDgNodeResolveDependencies(std::vector<Function *> &path,
-                                             APEXDependencyGraph &apex_dg,
-                                             const APEXDependencyNode &node) {
-  for (auto n : apex_dg.node_data_dependencies_map) {
-    if (n.first->getValue() == node.value) {
-      // @n.first is LLVMNode * that we want
-      LLVMNode *head = n.first;
-
-      // Run "BFS" to traverse dependencies and see if there is
-      // among them some function call.
-      // TODO: write propper BFS (with visited nodes checking and stuff).
-      std::vector<LLVMNode *> queue;
-      queue.push_back(head);
-      while (false == queue.empty()) {
-        // Pop @current and investigate it first.
-        LLVMNode *curr = queue.back();
-        queue.pop_back();
-
-        Value *curr_val = curr->getValue();
-        if (isa<CallInst>(curr_val)) {
-          // OK, we have found function call that is a data
-          // dependency for @node.
-          CallInst *curr_call_inst = cast<CallInst>(curr_val);
-          Function *curr_fcn = curr_call_inst->getCalledFunction();
-          std::string curr_fcn_name = curr_fcn->getName();
-          // Add this function to the @path (if it is not already
-          // there).
-          bool curr_fcn_in_path = false;
-          for (Function *path_fcn : path) {
-            std::string path_fcn_name = path_fcn->getName();
-            if (curr_fcn_name == path_fcn_name) {
-              curr_fcn_in_path = true;
-            }
-          }
-          if (false == curr_fcn_in_path) {
-            path.push_back(curr_fcn);
-          }
-        }
-
-        // Add neighbours to the queue.
-        for (LLVMNode *neighbor : apex_dg.node_data_dependencies_map[curr]) {
-          queue.push_back(neighbor);
-        }
-      }
-    }
-  }
-}
-/// Same as apexDgNodeResolveDependencies, but for reverse data dependencies
-// TODO: Refactor this and apexDgNodeResolveDependencies() into one function.
-void APEXPass::apexDgNodeResolveRevDependencies(
-    std::vector<Function *> &path, APEXDependencyGraph &apex_dg,
-    const APEXDependencyNode &node) {
-  for (auto n : apex_dg.node_rev_data_dependencies_map) {
-    if (n.first->getValue() == node.value) {
-      // @n.first is LLVMNode * that we want
-      LLVMNode *head = n.first;
-
-      // Run "BFS" to traverse dependencies and see if there is
-      // among them some function call.
-      // TODO: write propper BFS (with visited nodes checking and stuff).
-      std::vector<LLVMNode *> queue;
-      queue.push_back(head);
-      while (false == queue.empty()) {
-        // Pop @current and investigate it first.
-        LLVMNode *curr = queue.back();
-        queue.pop_back();
-
-        Value *curr_val = curr->getValue();
-        if (isa<CallInst>(curr_val)) {
-          // OK, we have found function call that is a data
-          // dependency for @node.
-          CallInst *curr_call_inst = cast<CallInst>(curr_val);
-          Function *curr_fcn = curr_call_inst->getCalledFunction();
-          std::string curr_fcn_name = curr_fcn->getName();
-          // Add this function to the @path (if it is not already
-          // there).
-          bool curr_fcn_in_path = false;
-          for (Function *path_fcn : path) {
-            std::string path_fcn_name = path_fcn->getName();
-            if (curr_fcn_name == path_fcn_name) {
-              curr_fcn_in_path = true;
-            }
-          }
-          if (false == curr_fcn_in_path) {
-            path.push_back(curr_fcn);
-          }
-        }
-
-        // Add neighbours to the queue.
-        for (LLVMNode *neighbor :
-             apex_dg.node_rev_data_dependencies_map[curr]) {
-          queue.push_back(neighbor);
-        }
-      }
-    }
-  }
-}
-
 /// Take @node and find all data dependencies that form the chain.
 /// Store these dependencies in the @dependencies vector.
 // TODO: Refactor this function. It is copy-paste code atm.
@@ -796,42 +530,6 @@ void APEXPass::apexDgFindDataDependencies(
       // Add neighbours to the queue.
       for (LLVMNode *neighbor : apex_dg.node_rev_data_dependencies_map[curr]) {
         queue.push_back(neighbor);
-      }
-    }
-  }
-}
-
-/// Goes over @dependencies and checks whether there are any function calls
-/// to functions outside @path. If yes, function that is being called
-/// is pushed to the @path.
-///
-/// Note:
-/// @dependencies are dependencies for specific LLVMNode computed
-/// by @apexDgFindDataDependencies().
-void APEXPass::updatePathAddDependencies(
-    const std::vector<LLVMNode *> &dependencies,
-    std::vector<Function *> &path) {
-  for (LLVMNode *dd : dependencies) {
-    dd->getValue()->dump();
-    if (isa<CallInst>(dd->getValue())) {
-      logPrintFlat("Dependency is CALL to: ");
-
-      CallInst *dd_call_inst = cast<CallInst>(dd->getValue());
-      Function *dd_called_fcn = dd_call_inst->getCalledFunction();
-      logPrintFlat(dd_called_fcn->getGlobalIdentifier());
-
-      if (functionIsProtected(dd_called_fcn)) {
-        logPrint(" (protected)");
-        continue;
-      }
-      logPrint("");
-
-      if (false == functionInPath(dd_called_fcn, path)) {
-        logPrint(dd_called_fcn->getGlobalIdentifier() + ": not in path!");
-        logPrint("- Pushing to path: " + dd_called_fcn->getGlobalIdentifier());
-        path.push_back(dd_called_fcn);
-      } else {
-        logPrint(dd_called_fcn->getGlobalIdentifier() + ": already in path");
       }
     }
   }
