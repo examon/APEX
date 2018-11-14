@@ -106,20 +106,16 @@ private:
   bool functionIsProtected(const Function *F);
   bool functionInPath(Function *F, const std::vector<Function *> &path);
 
-  // Callgraph utilities.
-  int createCallGraphOrDie(
-      const Module &M, const std::string &root,
-      std::vector<std::pair<Function *, std::vector<Function *>>> &callgraph);
-  void printCallGraph(
-      const std::vector<std::pair<Function *, std::vector<Function *>>>
-          &callgraph);
-  int findPathOrDie(
-      const std::vector<std::pair<Function *, std::vector<Function *>>>
-          &callgraph,
-      const std::string &source, const std::string &target,
-      std::vector<Function *> &final_path);
-  void printPath(const std::vector<Function *> &path, const std::string &source,
-                 const std::string &target);
+  void findPath(Module &M,
+                std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+                    &blocks_functions_callgraph,
+                std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+                    &function_dependency_blocks,
+                const std::vector<const Instruction *> &target_instructions,
+                const std::string &source_function_id,
+                const std::string &target_function_id,
+                std::vector<std::vector<LLVMNode *>> &path);
+  void printPath(const std::vector<std::vector<LLVMNode *>> &path);
 
   // dg utilities.
   void dgInit(Module &M, LLVMDependenceGraph &dg);
