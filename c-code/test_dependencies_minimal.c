@@ -3,16 +3,25 @@
 
 int global_1 = 10;
 
-int x(void) {
-  printf("x: in\n");
-  printf("x: out\n");
-  return 10;
-}
+
 
 int y (int n) {
   int a = n+n;
   return a;
 }
+
+int j(int n) {
+  int a = n+n;
+  return a;
+}
+
+int x(void) {
+  int j_ret = j(1);
+  return j_ret;
+}
+
+
+
 //int y(int n) {
 //  printf("y: in\n");
 //  int tmp = n+n;

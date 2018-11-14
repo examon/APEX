@@ -16,7 +16,7 @@ bool APEXPass::runOnModule(Module &M) {
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
   std::vector<std::pair<Function *, std::vector<Function *>>> call_graph;
-  std::vector<Function *> path;
+  //  std::vector<Function *> path;
   std::string source_function_id =
       "main";                          // TODO: Figure out entry automatically?
   std::string target_function_id = ""; // Will be properly initialized later.
@@ -73,10 +73,10 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Constructing function dependency blocks.");
   apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
 
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing calculated function dependency blocks.");
-    apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
-  }
+  //  if (VERBOSE_DEBUG) {
+  logPrintUnderline("Printing calculated function dependency blocks.");
+  apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
+  //  }
 
   logPrintUnderline("Constructing dependency blocks to functions callgraph.");
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
@@ -89,7 +89,13 @@ bool APEXPass::runOnModule(Module &M) {
 
   logPrintUnderline("Finding path from @" + source_function_id + " to @" +
                     target_function_id + ".");
-  std::map<std::vector<LLVMNode *> *, std::vector<std::vector<LLVMNode *> *>>
+  // @path is the representation of computed execution path
+  // It holds pair of function and dependency block from function through which
+  // is the execution "flowing".
+  std::vector<std::vector<LLVMNode *>> path;
+
+  // @block_path is used to store path from @source_function to each node.
+  std::map<std::vector<LLVMNode *> *, std::vector<std::vector<LLVMNode *>>>
       block_path;
   {
     std::vector<std::vector<LLVMNode *> *> queue;
@@ -113,7 +119,11 @@ bool APEXPass::runOnModule(Module &M) {
         // Get blocks for those functions that are called.
         for (auto &neighbour_block :
              function_dependency_blocks[called_function]) {
-          block_path[&neighbour_block].push_back(current_ptr);
+          // What we do here is that we copy the path from the current
+          // block, append current node to it and assign this path to
+          // each neighbour of current.
+          block_path[&neighbour_block] = block_path[current_ptr];
+          block_path[&neighbour_block].push_back(*current_ptr);
 
           bool block_already_visited = false;
           for (const auto &visited_block_ptr : visited) {
@@ -131,89 +141,130 @@ bool APEXPass::runOnModule(Module &M) {
     }
   }
 
-  // TODO: Find target block via target instructions.
-  // TODO: Reconstruct path to the target block.
-
-  exit(0);
-
-  logPrintUnderline("Dependency resolver: START");
-  // Investigate each function in @path.
-  for (auto &fcn_in_path : path) {
-    logPrint("FCN: " + fcn_in_path->getGlobalIdentifier());
-    for (auto &BB : *fcn_in_path) {
-      // Go over instructions for each function in @path.
-      for (auto &I : BB) {
-        if (false == isa<CallInst>(I)) {
-          continue;
+  // Finding target block. That is, block where target instruction are.
+  // We use heuristic and take last instruction from the @target_instructions.
+  // The reason is that inside @target_instructions may be more instructions
+  // than present in target block (especially at the beginning), so
+  // TODO: This is segfaulting when @target_block is pointer.
+  // TODO: Leaving it as a value for now.
+  std::vector<LLVMNode *> target_block;
+  for (auto block :
+       function_dependency_blocks[M.getFunction(target_function_id)]) {
+    for (auto node_ptr : block) {
+      if (target_instructions.back() == node_ptr->getValue()) {
+        // Check the target line, just in case.
+        if (std::to_string(
+                target_instructions.back()->getDebugLoc().getLine()) ==
+            ARG_LINE) {
+          target_block = block;
         }
-        // Ok, @I is call instruction.
-        // If @I calls something in @path, compute dependencies and include
-        // new stuff to @path.
-        CallInst *call_inst = cast<CallInst>(&I);
-        Function *called_fcn = call_inst->getCalledFunction();
-        logPrintFlat("- @I calling: " + called_fcn->getGlobalIdentifier());
+      }
+    }
+  }
+  if (target_block.empty()) {
+    logPrint("ERROR: Could not find target block! Make sure target "
+             "instructions are not dead code (e.g. in the uncalled function");
+    exit(FATAL_ERROR);
+  }
 
-        // We care if @I is calling function that is in the @path.
-        if (false == functionInPath(called_fcn, path)) {
-          // Do not investigate @I if it is calling function OUTSIDE PATH.
-          logPrint(" (not in path)");
-          continue;
-        }
+  logPrint("Reconstructing block path:");
+  for (const auto bp : block_path) {
+    // Comparing values can be slow, but blocks should not be really huge.
+    if (*bp.first == target_block) {
+      path = bp.second;
+    }
+  }
+  path.push_back(target_block);
 
-        // We care if @I is calling non protected function.
-        if (functionIsProtected(called_fcn)) {
-          logPrint(" (protected)");
-          continue;
-        }
+  for (const auto block : path) {
+    Instruction *i = cast<Instruction>(block.front()->getValue());
+    logPrint("- BLOCK FROM: " + i->getFunction()->getGlobalIdentifier());
+    for (const auto node : block) {
+      node->getValue()->dump();
+    }
+    logPrint("");
+  }
 
-        logPrint(" (IN path)");
+  /*
+    logPrintUnderline("Dependency resolver: START");
+    // Investigate each function in @path.
+    for (auto &fcn_in_path : path) {
+      logPrint("FCN: " + fcn_in_path->getGlobalIdentifier());
+      for (auto &BB : *fcn_in_path) {
+        // Go over instructions for each function in @path.
+        for (auto &I : BB) {
+          if (false == isa<CallInst>(I)) {
+            continue;
+          }
+          // Ok, @I is call instruction.
+          // If @I calls something in @path, compute dependencies and include
+          // new stuff to @path.
+          CallInst *call_inst = cast<CallInst>(&I);
+          Function *called_fcn = call_inst->getCalledFunction();
+          logPrintFlat("- @I calling: " + called_fcn->getGlobalIdentifier());
 
-        // Find @I in the @apex_dg.
-        logPrint("  - finding @I in @apex_dg");
-        APEXDependencyNode *I_apex = nullptr;
-        for (APEXDependencyFunction apex_fcn : apex_dg.functions) {
-          std::string apex_fcn_name = apex_fcn.value->getName();
-          if (apex_fcn_name == fcn_in_path->getGlobalIdentifier()) {
-            for (APEXDependencyNode apex_node : apex_fcn.nodes) {
-              if (isa<CallInst>(apex_node.value)) {
-                CallInst *node_inst = cast<CallInst>(apex_node.value);
-                Function *node_called_fcn = node_inst->getCalledFunction();
-                if (node_called_fcn == called_fcn) {
-                  I_apex = &apex_node;
-                  logPrintFlat("  - found @I: ");
-                  I_apex->value->dump();
-                  goto I_FOUND; // Get out of the loops.
+          // We care if @I is calling function that is in the @path.
+          if (false == functionInPath(called_fcn, path)) {
+            // Do not investigate @I if it is calling function OUTSIDE PATH.
+            logPrint(" (not in path)");
+            continue;
+          }
+
+          // We care if @I is calling non protected function.
+          if (functionIsProtected(called_fcn)) {
+            logPrint(" (protected)");
+            continue;
+          }
+
+          logPrint(" (IN path)");
+
+          // Find @I in the @apex_dg.
+          logPrint("  - finding @I in @apex_dg");
+          APEXDependencyNode *I_apex = nullptr;
+          for (APEXDependencyFunction apex_fcn : apex_dg.functions) {
+            std::string apex_fcn_name = apex_fcn.value->getName();
+            if (apex_fcn_name == fcn_in_path->getGlobalIdentifier()) {
+              for (APEXDependencyNode apex_node : apex_fcn.nodes) {
+                if (isa<CallInst>(apex_node.value)) {
+                  CallInst *node_inst = cast<CallInst>(apex_node.value);
+                  Function *node_called_fcn = node_inst->getCalledFunction();
+                  if (node_called_fcn == called_fcn) {
+                    I_apex = &apex_node;
+                    logPrintFlat("  - found @I: ");
+                    I_apex->value->dump();
+                    goto I_FOUND; // Get out of the loops.
+                  }
                 }
               }
             }
           }
-        }
-        if (nullptr == I_apex) {
-          logPrint("ERROR: Could not find @I in @apex_dg!");
-          exit(-1);
-        }
+          if (nullptr == I_apex) {
+            logPrint("ERROR: Could not find @I in @apex_dg!");
+            exit(-1);
+          }
 
-      I_FOUND:
-        // Now, check if @I has some data dependencies that are fcn calls.
-        std::vector<LLVMNode *> data_dependencies;
-        std::vector<LLVMNode *> rev_data_dependencies;
-        LLVMNode *I_apex_node = I_apex->node;
-        apexDgFindDataDependencies(apex_dg, *I_apex_node, data_dependencies,
-                                   rev_data_dependencies);
+        I_FOUND:
+          // Now, check if @I has some data dependencies that are fcn calls.
+          std::vector<LLVMNode *> data_dependencies;
+          std::vector<LLVMNode *> rev_data_dependencies;
+          LLVMNode *I_apex_node = I_apex->node;
+          apexDgFindDataDependencies(apex_dg, *I_apex_node, data_dependencies,
+                                     rev_data_dependencies);
 
-        logPrint("   - @I data dependencies:\n");
-        updatePathAddDependencies(data_dependencies, path);
-        logPrint("");
-        logPrint("   - @I reverse data dependencies:\n");
-        updatePathAddDependencies(rev_data_dependencies, path);
-        logPrint("");
+          logPrint("   - @I data dependencies:\n");
+          updatePathAddDependencies(data_dependencies, path);
+          logPrint("");
+          logPrint("   - @I reverse data dependencies:\n");
+          updatePathAddDependencies(rev_data_dependencies, path);
+          logPrint("");
+        }
       }
-    }
-    // TODO: one iteration of dep resolving is done
+      // TODO: one iteration of dep resolving is done
 
-    logPrint("\n---\n");
-  }
-  printPath(path, source_function_id, target_function_id);
+      logPrint("\n---\n");
+    }
+    printPath(path, source_function_id, target_function_id);
+  */
 
   // TODO: ERROR: inlinable function call in a function with debug info must
   // have a !dbg location
