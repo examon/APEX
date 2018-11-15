@@ -138,8 +138,9 @@ private:
   void moduleFindTargetInstructionsOrDie(
       Module &M, const std::string &file, const std::string &line,
       std::vector<const Instruction *> &target_instructions);
-  void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
-                                      std::vector<Function *> &path);
+  void
+  moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
+                                 std::vector<std::vector<LLVMNode *>> &path);
   void moduleInsertExitAfterTarget(Module &M,
                                    const std::vector<Function *> &path,
                                    const std::string &target_id);
@@ -153,6 +154,9 @@ private:
                 const std::string &target_function_id,
                 std::vector<std::vector<LLVMNode *>> &path);
   void printPath(const std::vector<std::vector<LLVMNode *>> &path);
+  void removeUnneededStuff(const std::vector<std::vector<LLVMNode *>> &path,
+                           const std::string &source_function_id,
+                           const std::string &target_function_id);
 };
 
 /// Registering our own pass, so it can be ran via opt.

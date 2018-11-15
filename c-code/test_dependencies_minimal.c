@@ -20,15 +20,6 @@ int x(void) {
   return j_ret;
 }
 
-
-
-//int y(int n) {
-//  printf("y: in\n");
-//  int tmp = n+n;
-//  printf("y: out\n");
-//  return tmp;
-//}
-
 int z(void) {
   printf("z: in\n");
   int tmp = 1;
@@ -43,24 +34,19 @@ int n(void) {
   return y_ret;
 }
 
-int main(void) {
-//  printf("main: in\n");
-//  global_1 = 1;
-//
-//  int *malloc_a = malloc(sizeof(int));
-//  *malloc_a = 10;
+int flag(void) {
+  return 0;
+}
 
-  int x_ret = x();
+int main(int argc, char **argv) {
+  int f = flag();
 
-  int y_ret = y(x_ret);
-//  int y_store = y_ret;
-
-//  int z_ret = z();
-//  int z_store = z_ret;
-
-  int n_ret = n();
-  int n_store = n_ret;
-
-//  printf("main: out\n");
+  if (f == 0) {
+    int x_ret = x();
+    int y_ret = y(x_ret);
+  } else {
+    int n_ret = n();
+    int n_store = n_ret;
+  }
   return 0;
 }

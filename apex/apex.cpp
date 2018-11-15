@@ -62,10 +62,8 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Constructing function dependency blocks.");
   apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
 
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing calculated function dependency blocks.");
-    apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
-  }
+  logPrintUnderline("Printing calculated function dependency blocks.");
+  apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
 
   logPrintUnderline("Constructing dependency blocks to functions callgraph.");
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
@@ -91,8 +89,9 @@ bool APEXPass::runOnModule(Module &M) {
   //  logPrintUnderline("Inserting exit call before @target_instruction.");
   //  moduleInsertExitAfterTarget(M, path, target_function);
 
-  //  logPrintUnderline("Removing functions (along with dependencies) that do
-  //  not affect the @path and are not in the @PROTECTED_FCNS.");
+  logPrintUnderline("Removing functions and dependency blocks that do not "
+                    "affect calculated path.");
+  removeUnneededStuff(path, source_function_id, target_function_id);
   //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
   if (VERBOSE_DEBUG) {
@@ -648,8 +647,10 @@ void APEXPass::apexDgComputeFunctionDependencyBlocks(
           bool current_already_stored = false;
 
           for (LLVMNode *neighbour : neighbours) {
+
             bool neighbour_already_stored = false;
             for (auto &block : function_blocks) {
+
               for (LLVMNode *node : block) {
                 if (neighbour == node) {
                   neighbour_already_stored = true;
@@ -694,12 +695,38 @@ void APEXPass::apexDgComputeFunctionDependencyBlocks(
     logPrint("- done: " + std::to_string(num_fcn_instructions) +
              " instructions in blocks");
 
-    // TODO: Instructions are not in the original order. This may be a problem.
-    // TODO: Sort them here if it would be.
-
     // Everything should be OK, store computed blocks into storage.
     function_dependency_blocks[&F] = function_blocks;
   }
+
+  // Instructions in stored in the @new_blocks are not in the same order
+  // as they are in the @F.
+  // We need to put them in the correct order and store that result back
+  // to the @function_dependency_blocks.
+  logPrint("Sorting function dependency blocks:");
+  std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+      function_dependency_blocks_sorted;
+  for (const auto &function_blocks : function_dependency_blocks) {
+    for (const auto &block : function_blocks.second) {
+      std::vector<LLVMNode *> new_block_sorted;
+      for (const auto &BB : *(function_blocks.first)) {
+        for (const auto &I : BB) {
+          for (const auto node_ptr : block) {
+            if (node_ptr->getValue() == &I) {
+              new_block_sorted.push_back(node_ptr);
+            }
+          }
+        }
+      }
+      // Make sure we have not missed any instruction and sorted block has
+      // every instruction that unsorted before storing @new_block_sorted.
+      assert(new_block_sorted.size() == block.size());
+      function_dependency_blocks_sorted[function_blocks.first].push_back(
+          new_block_sorted);
+    }
+  }
+  function_dependency_blocks = function_dependency_blocks_sorted;
+  logPrint("- done");
 }
 
 /// Pretty prints @functions_blocks map.
@@ -813,12 +840,13 @@ void APEXPass::moduleFindTargetInstructionsOrDie(
   }
 }
 
+/*
 /// Goes over all functions in module. If there is some function in module
 /// that is not in the @path, put it for removal along it all its dependencies.
 /// Note: Functions that are in @PROTECTED_FCNS, will NOT be removed.
-void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
-                                              APEXDependencyGraph &apex_dg,
-                                              std::vector<Function *> &path) {
+void APEXPass::moduleRemoveFunctionsNotInPath(
+    Module &M, APEXDependencyGraph &apex_dg,
+    std::vector<std::vector<LLVMNode *>> &path) {
   logPrint("Collecting functions that are going to be removed:");
   std::vector<Function *> functions_to_be_removed;
   {
@@ -920,6 +948,7 @@ void APEXPass::moduleRemoveFunctionsNotInPath(Module &M,
     logPrint("- removed functions count: " + std::to_string(removed_fcn_count));
   }
 }
+*/
 
 /// Finds FUNCTION with @target_id in @path. Takes predecessor of FUNCTION from
 /// path. In this predecessor, finds the call to the FUNCTION and inserts after
@@ -973,7 +1002,7 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
     // Now that we have function that should call @target_function, we search
     // inside for call instruction to @target_function.
     for (auto &BB : *chosen_caller) {
-      for (auto &&I : BB) {
+      for (auto &I : BB) {
         if (isa<CallInst>(I)) {
           Function *called_fcn = cast<CallInst>(I).getCalledFunction();
           if (called_fcn == target_fcn) {
@@ -1052,5 +1081,21 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
     }
     logPrintFlat("- lib_exit call instruction created: ");
     exit_call_inst->dump();
+  }
+}
+
+/// WIP
+void APEXPass::removeUnneededStuff(
+    const std::vector<std::vector<LLVMNode *>> &path,
+    const std::string &source_function_id,
+    const std::string &target_function_id) {
+
+  std::vector<std::vector<LLVMNode *>> blocks_to_remove;
+
+  for (const auto &block : path) {
+    const Instruction *first_inst =
+        cast<Instruction>(block.front()->getValue());
+    const Function *fcn = first_inst->getFunction();
+    logPrint(fcn->getGlobalIdentifier());
   }
 }
