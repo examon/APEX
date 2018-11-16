@@ -38,6 +38,9 @@ bool VERBOSE_DEBUG = false;
 /// Error code when we want to crash APEXPass.
 int FATAL_ERROR = -1;
 
+/// Function LLVMNodes connected via the data dependencies.
+using DependencyBlock = std::vector<LLVMNode *>;
+
 /// Protected functions IDs. These will not be removed by APEXPass.
 std::vector<std::string> PROTECTED_FCNS = {
     "lib_test", "lib_exit", "exit", // These come from c-code/lib.c.
@@ -138,23 +141,22 @@ private:
   void moduleFindTargetInstructionsOrDie(
       Module &M, const std::string &file, const std::string &line,
       std::vector<const Instruction *> &target_instructions);
-  void
-  moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
-                                 std::vector<std::vector<LLVMNode *>> &path);
+  void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
+                                      std::vector<DependencyBlock> &path);
   void moduleInsertExitAfterTarget(Module &M,
                                    const std::vector<Function *> &path,
                                    const std::string &target_id);
   void findPath(Module &M,
-                std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+                std::map<DependencyBlock, std::vector<const Function *>>
                     &blocks_functions_callgraph,
-                std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+                std::map<const Function *, std::vector<DependencyBlock>>
                     &function_dependency_blocks,
                 const std::vector<const Instruction *> &target_instructions,
                 const std::string &source_function_id,
                 const std::string &target_function_id,
-                std::vector<std::vector<LLVMNode *>> &path);
-  void printPath(const std::vector<std::vector<LLVMNode *>> &path);
-  void removeUnneededStuff(const std::vector<std::vector<LLVMNode *>> &path,
+                std::vector<DependencyBlock> &path);
+  void printPath(const std::vector<DependencyBlock> &path);
+  void removeUnneededStuff(const std::vector<DependencyBlock> &path,
                            const std::string &source_function_id,
                            const std::string &target_function_id);
 };

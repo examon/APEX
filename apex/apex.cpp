@@ -21,16 +21,16 @@ bool APEXPass::runOnModule(Module &M) {
   // @path is the representation of computed execution path.
   // It holds pair of function and dependency block from function through which
   // is the execution "flowing".
-  std::vector<std::vector<LLVMNode *>> path;
+  std::vector<DependencyBlock> path;
 
   std::string source_function_id =
       "main";                          // TODO: Figure out entry automatically?
   std::string target_function_id = ""; // Will be properly initialized later.
 
   std::vector<const Instruction *> target_instructions;
-  std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+  std::map<const Function *, std::vector<DependencyBlock>>
       function_dependency_blocks;
-  std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+  std::map<DependencyBlock, std::vector<const Function *>>
       blocks_functions_callgraph;
 
   if (VERBOSE_DEBUG) {
@@ -249,20 +249,19 @@ bool APEXPass::functionInPath(Function *F,
 /// blocks that are on the execution flow.
 void APEXPass::findPath(
     Module &M,
-    std::map<std::vector<LLVMNode *>, std::vector<const Function *>>
+    std::map<DependencyBlock, std::vector<const Function *>>
         &blocks_functions_callgraph,
-    std::map<const Function *, std::vector<std::vector<LLVMNode *>>>
+    std::map<const Function *, std::vector<DependencyBlock>>
         &function_dependency_blocks,
     const std::vector<const Instruction *> &target_instructions,
     const std::string &source_function_id,
-    const std::string &target_function_id,
-    std::vector<std::vector<LLVMNode *>> &path) {
+    const std::string &target_function_id, std::vector<DependencyBlock> &path) {
+
   // @block_path is used to store path from @source_function to each node.
-  std::map<std::vector<LLVMNode *> *, std::vector<std::vector<LLVMNode *>>>
-      block_path;
+  std::map<DependencyBlock *, std::vector<DependencyBlock>> block_path;
   {
-    std::vector<std::vector<LLVMNode *> *> queue;
-    std::vector<std::vector<LLVMNode *> *> visited;
+    std::vector<DependencyBlock *> queue;
+    std::vector<DependencyBlock *> visited;
 
     // Initially push blocks from source function into the @queue.
     for (auto &block :
@@ -308,42 +307,38 @@ void APEXPass::findPath(
   // We use heuristic and take last instruction from the @target_instructions.
   // The reason is that inside @target_instructions may be more instructions
   // than present in target block (especially at the beginning), so
-  // TODO: This is segfaulting when @target_block is pointer.
-  // TODO: Leaving it as a value for now.
-  // TODO: auto &block
-  std::vector<LLVMNode *> target_block;
-  for (auto block :
+  DependencyBlock *target_block = nullptr;
+  for (auto &block :
        function_dependency_blocks[M.getFunction(target_function_id)]) {
-    for (auto node_ptr : block) {
+    for (const auto &node_ptr : block) {
       if (target_instructions.back() == node_ptr->getValue()) {
         // Check the target line, just in case.
         if (std::to_string(
                 target_instructions.back()->getDebugLoc().getLine()) ==
             ARG_LINE) {
-          target_block = block;
+          target_block = &block;
         }
       }
     }
   }
-  if (target_block.empty()) {
+  if (nullptr == target_block || target_block->empty()) {
     logPrint("ERROR: Could not find target block! Make sure target "
              "instructions are not dead code (e.g. in the uncalled function");
     exit(FATAL_ERROR);
   }
 
   logPrint("Reconstructing block path:");
-  for (const auto bp : block_path) {
-    // Comparing values can be slow, but blocks should not be really huge.
-    if (*bp.first == target_block) {
+  for (const auto &bp : block_path) {
+    if (bp.first == target_block) {
       path = bp.second;
     }
   }
-  path.push_back(target_block);
+  path.push_back(*target_block);
   logPrint("- done");
 }
 
 /// Prints path in the @path.
-void APEXPass::printPath(const std::vector<std::vector<LLVMNode *>> &path) {
+void APEXPass::printPath(const std::vector<DependencyBlock> &path) {
   for (const auto block : path) {
     Instruction *i = cast<Instruction>(block.front()->getValue());
     logPrint("- BLOCK FROM: " + i->getFunction()->getGlobalIdentifier());
@@ -1085,12 +1080,12 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
 }
 
 /// WIP
-void APEXPass::removeUnneededStuff(
-    const std::vector<std::vector<LLVMNode *>> &path,
-    const std::string &source_function_id,
-    const std::string &target_function_id) {
+void APEXPass::removeUnneededStuff(const std::vector<DependencyBlock> &path,
+                                   const std::string &source_function_id,
+                                   const std::string &target_function_id) {
 
-  std::vector<std::vector<LLVMNode *>> blocks_to_remove;
+  std::vector<const Function *> functions_to_remove;
+  std::vector<DependencyBlock *> blocks_to_remove;
 
   for (const auto &block : path) {
     const Instruction *first_inst =
