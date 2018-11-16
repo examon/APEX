@@ -91,7 +91,9 @@ bool APEXPass::runOnModule(Module &M) {
 
   logPrintUnderline("Removing functions and dependency blocks that do not "
                     "affect calculated path.");
-  removeUnneededStuff(path, source_function_id, target_function_id);
+  removeUnneededStuff(path, blocks_functions_callgraph,
+                      function_dependency_blocks, source_function_id,
+                      target_function_id);
   //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
   if (VERBOSE_DEBUG) {
@@ -1080,17 +1082,76 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
 }
 
 /// WIP
-void APEXPass::removeUnneededStuff(const std::vector<DependencyBlock> &path,
-                                   const std::string &source_function_id,
-                                   const std::string &target_function_id) {
+void APEXPass::removeUnneededStuff(
+    const std::vector<DependencyBlock> &path,
+    std::map<DependencyBlock, std::vector<const Function *>>
+        &blocks_functions_callgraph,
+    std::map<const Function *, std::vector<DependencyBlock>>
+        &function_dependency_blocks,
+    const std::string &source_function_id,
+    const std::string &target_function_id) {
 
-  std::vector<const Function *> functions_to_remove;
-  std::vector<DependencyBlock *> blocks_to_remove;
+  // Mapping from function to dependency blocks. Blocks belong to function.
+  // We are going to keep these function:blocks.
+  std::map<const Function *, std::set<DependencyBlock>> function_blocks_to_keep;
 
-  for (const auto &block : path) {
-    const Instruction *first_inst =
-        cast<Instruction>(block.front()->getValue());
-    const Function *fcn = first_inst->getFunction();
-    logPrint(fcn->getGlobalIdentifier());
+  logPrint("Computing what functions and dependency blocks we want to keep:");
+  {
+    std::vector<DependencyBlock> queue;
+    std::vector<DependencyBlock> visited;
+
+    // Reverse iterate @path so we begin BFS with the first node instead with
+    // the last.
+    for (auto it = path.rbegin(); it != path.rend(); ++it) {
+      queue.push_back(*it);
+    }
+
+    while (false == queue.empty()) {
+      DependencyBlock current = queue.back();
+      queue.pop_back();
+      visited.push_back(current);
+
+      // Figure out what is the parent function of @current.
+      const Instruction *current_inst =
+          cast<Instruction>(current.front()->getValue());
+
+      // Store @current block associated with its parent function.
+      function_blocks_to_keep[current_inst->getFunction()].insert(current);
+
+      // Go over functions that are being called from the @current block.
+      // Add them to the queue if they were not visited already.
+      for (const auto &called_function : blocks_functions_callgraph[current]) {
+        for (const auto &block : function_dependency_blocks[called_function]) {
+
+          // Check if we already visited @block.
+          bool block_already_visited = false;
+          for (const auto &visited_block : visited) {
+            if (block == visited_block) {
+              block_already_visited = true;
+              break;
+            }
+          }
+          if (false == block_already_visited) {
+            queue.push_back(block);
+          }
+        }
+      }
+    }
+
+    // Pretty print functions and associated blocks that we want to keep.
+    for (const auto &function_blocks : function_blocks_to_keep) {
+      logPrint("FUNCTION: " + function_blocks.first->getGlobalIdentifier());
+      for (const auto &block : function_blocks.second) {
+        logPrint(" - block");
+        // Printing nodes itself for debugging only.
+        for (const auto &node_ptr : block) {
+          node_ptr->getValue()->dump();
+        }
+        logPrint("");
+      }
+    }
   }
+
+  logPrint("\nRemoving everything that we do not want to keep:");
+  // TODO
 }

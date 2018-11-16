@@ -156,9 +156,14 @@ private:
                 const std::string &target_function_id,
                 std::vector<DependencyBlock> &path);
   void printPath(const std::vector<DependencyBlock> &path);
-  void removeUnneededStuff(const std::vector<DependencyBlock> &path,
-                           const std::string &source_function_id,
-                           const std::string &target_function_id);
+  void
+  removeUnneededStuff(const std::vector<DependencyBlock> &path,
+                      std::map<DependencyBlock, std::vector<const Function *>>
+                          &blocks_functions_callgraph,
+                      std::map<const Function *, std::vector<DependencyBlock>>
+                          &function_dependency_blocks,
+                      const std::string &source_function_id,
+                      const std::string &target_function_id);
 };
 
 /// Registering our own pass, so it can be ran via opt.
