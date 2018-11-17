@@ -51,5 +51,6 @@ int main(int argc, char **argv) {
     int n_store = n_ret;
   }
 
+  int z_ret = z();
   return 0;
 }

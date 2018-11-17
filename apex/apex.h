@@ -13,16 +13,17 @@
 #include <string>
 #include <vector>
 
-#include "llvm/ADT/APInt.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/LLVMContext.h"
+#include <llvm/ADT/APInt.h>
 #include <llvm/Analysis/CallGraph.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/Utils/ValueMapper.h>
 
 // We need this for dg integration.
 #include "analysis/PointsTo/PointsToFlowInsensitive.h"
@@ -135,9 +136,10 @@ private:
   void moduleFindTargetInstructionsOrDie(
       Module &M, const std::string &file, const std::string &line,
       std::vector<const Instruction *> &target_instructions);
-  void moduleInsertExitAfterTarget(Module &M,
-                                   const std::vector<Function *> &path,
-                                   const std::string &target_id);
+  void moduleInsertExitAfterTarget(
+      Module &M, const std::vector<const Instruction *> &target_instructions,
+      const std::string &target_function_id);
+
   void findPath(Module &M,
                 std::map<DependencyBlock, std::vector<const Function *>>
                     &blocks_functions_callgraph,

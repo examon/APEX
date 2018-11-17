@@ -12,7 +12,7 @@
 
 // TODO: Create aliases for long type defs.
 // TODO: Move instance variables from runOnModule to APEXPass
-
+// TODO: move c-code/lib.c to the apex dir
 
 #include "apex.h"
 
@@ -67,8 +67,10 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Constructing function dependency blocks.");
   apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
 
-  logPrintUnderline("Printing calculated function dependency blocks.");
-  apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing calculated function dependency blocks.");
+    apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
+  }
 
   logPrintUnderline("Constructing dependency blocks to functions callgraph.");
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
@@ -84,9 +86,11 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(M, blocks_functions_callgraph, function_dependency_blocks,
            target_instructions, source_function_id, target_function_id, path);
 
-  logPrintUnderline("Printing path from @" + source_function_id + " to @" +
-                    target_function_id + ".");
-  printPath(path);
+  if (VERBOSE_DEBUG) {
+    logPrintUnderline("Printing path from @" + source_function_id + " to @" +
+                      target_function_id + ".");
+    printPath(path);
+  }
 
   logPrintUnderline("Removing functions and dependency blocks that do not "
                     "affect calculated path.");
@@ -94,11 +98,14 @@ bool APEXPass::runOnModule(Module &M) {
                       function_dependency_blocks, source_function_id,
                       target_function_id);
 
+  logPrintUnderline("DBG print");
+  logDumpModule(M);
+
   // TODO: ERROR: inlinable function call in a function with debug info must
   // TODO:   have a !dbg location
   // TODO: Need to setup DebugLoc to the instruction?
-  //  logPrintUnderline("Inserting exit call before @target_instruction.");
-  //  moduleInsertExitAfterTarget(M, path, target_function);
+  logPrintUnderline("Inserting exit call after target instructions.");
+  moduleInsertExitAfterTarget(M, target_instructions, target_function_id);
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Final module dump.");
@@ -171,7 +178,6 @@ bool APEXPass::functionIsProtected(const Function *F) {
   }
   return false;
 }
-
 
 // Callgraph utilities
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -773,98 +779,23 @@ void APEXPass::moduleFindTargetInstructionsOrDie(
 /// Finds FUNCTION with @target_id in @path. Takes predecessor of FUNCTION from
 /// path. In this predecessor, finds the call to the FUNCTION and inserts after
 /// this instruction, call to lib_exit() from lib.c
-void APEXPass::moduleInsertExitAfterTarget(Module &M,
-                                           const std::vector<Function *> &path,
-                                           const std::string &target_id) {
-  logPrint("Getting/picking callsite for @" + target_id);
-  Function *target_fcn = M.getFunction(target_id);
-  {
-    if (nullptr == target_fcn) {
-      logPrint("ERROR: Could not get target function from module.");
-      exit(-1);
-    }
+void APEXPass::moduleInsertExitAfterTarget(
+    Module &M, const std::vector<const Instruction *> &target_instructions,
+    const std::string &target_function_id) {
 
-    std::vector<Function *> target_fcn_callers;
-    if (functionGetCallers(target_fcn, target_fcn_callers) != 0) {
-      logPrint("ERROR: Could not get callers for target function.");
-    }
-
-    logPrint("Collected @" + target_id + " callers:");
-    for (Function *f : target_fcn_callers) {
-      logPrint("- " + f->getGlobalIdentifier());
-    }
+  logPrint("Supplied target instructions from: " +
+           target_instructions.back()->getFunction()->getGlobalIdentifier());
+  for (const auto &target_instruction : target_instructions) {
+    target_instruction->dump();
   }
 
-  logPrint("\nPicking one caller:");
-  Function *chosen_caller = nullptr;
-  {
-    // Ok, so we have @target_fcn_callers AKA functions that call @target.
-    // There can be multiple callers, so we need to decide which one to
-    // pick.
-    // We will pick one that is immediately before @target in @path, e.g.:
-    // If, @path = [main, n, y], @target = y, so we will pick @n.
-    for (int i = 0; i < path.size(); ++i) {
-      if ((path[i] == target_fcn) && (i > 0)) {
-        chosen_caller = path[i - 1];
-      }
-    }
-    if (nullptr == chosen_caller) {
-      logPrint("ERROR: Could not find chosen caller.");
-      exit(-1);
-    }
-    logPrint("- chosen caller id: " + chosen_caller->getGlobalIdentifier());
-  }
+  logPrint("\nSetting insertion point:");
+  Instruction *insertion_point =
+      const_cast<Instruction *>(target_instructions.back());
+  logPrintFlat("- after: ");
+  target_instructions.back()->dump();
 
-  logPrint("\nFinding chosen call instruction to target function inside @" +
-           chosen_caller->getGlobalIdentifier() + ":");
-  Instruction *chosen_instruction = nullptr;
-  {
-    // Now that we have function that should call @target_function, we search
-    // inside for call instruction to @target_function.
-    for (auto &BB : *chosen_caller) {
-      for (auto &I : BB) {
-        if (isa<CallInst>(I)) {
-          Function *called_fcn = cast<CallInst>(I).getCalledFunction();
-          if (called_fcn == target_fcn) {
-            chosen_instruction = &I;
-            break;
-          }
-        }
-      }
-    }
-    if (nullptr == chosen_instruction) {
-      logPrint("ERROR: Could not find chosen instruction.");
-      exit(-1);
-    }
-    logPrint("- call instruction to target function found");
-  }
-
-  logPrint("\nSearching for insertion point (that is, instruction after chosen "
-           "instruction):");
-  Instruction *insertion_point = nullptr;
-  {
-    // We have @chosen_instruction, but we want to find instruction that sits
-    // right after @chosen_instruction. This way, we can insert exit call
-    // after @chosen_instruction and not before.
-    for (inst_iterator I = inst_begin(chosen_caller),
-                       E = inst_end(chosen_caller);
-         I != E; ++I) {
-      Instruction *current_inst = &(*I);
-      if (current_inst == chosen_instruction && I != E) {
-        I++;
-        insertion_point = &(*I);
-      }
-    }
-    if (nullptr == insertion_point) {
-      logPrint("ERROR: could not find insertion point!");
-      exit(-1);
-    }
-    logPrintFlat("- insertion point found: ");
-    insertion_point->dump();
-  }
-
-  logPrint("\nInserting call instruction to lib_exit() after chosen "
-           "instruction (that is, before insertion point).");
+  logPrint("\nInserting call instruction lib_exit() after insertion point:");
   {
     // Create vector of types and put one integer into this vector.
     std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
@@ -892,8 +823,10 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
     // @exit_params. Empty string "" means that the @exit_call_inst will not
     // have return variable.
     // @exit_call_inst is inserted BEFORE @chosen_instruction.
-    CallInst *exit_call_inst =
-        CallInst::Create(exit_fcn, exit_params, "", insertion_point);
+    CallInst *exit_call_inst = CallInst::Create(exit_fcn, exit_params, "");
+
+    // TODO: We need to make exit_call_inst terminator if we insert AFTER.
+    exit_call_inst->insertAfter(insertion_point);
 
     if (nullptr == exit_call_inst) {
       logPrint("ERROR: could not create lib_exit call instruction.");
@@ -901,7 +834,10 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
     }
     logPrintFlat("- lib_exit call instruction created: ");
     exit_call_inst->dump();
+
+    // TODO: Add debug symbols to the exit_call_inst.
   }
+
 }
 
 /// Figures out what DependencyBlocks and functions to remove and removes them.
@@ -960,19 +896,7 @@ void APEXPass::removeUnneededStuff(
         }
       }
     }
-
-    // Pretty print functions and associated blocks that we want to keep.
-    for (const auto &function_blocks : function_blocks_to_keep) {
-      logPrint("FUNCTION: " + function_blocks.first->getGlobalIdentifier());
-      for (const auto &block : function_blocks.second) {
-        logPrint(" - block");
-        // Printing nodes itself for debugging only.
-        for (const auto &node_ptr : block) {
-          node_ptr->getValue()->dump();
-        }
-        logPrint("");
-      }
-    }
+    logPrint("- done");
   }
 
   logPrint("\nCollecting everything that we do not want to keep:");
@@ -981,13 +905,13 @@ void APEXPass::removeUnneededStuff(
   {
     for (const auto &module_function : M.getFunctionList()) {
       if (functionIsProtected(&module_function)) {
-        logPrint("is protected: " + module_function.getGlobalIdentifier());
+        logPrint("- is protected: " + module_function.getGlobalIdentifier());
         continue;
       }
 
       // Check if @module_function is stored in the @function_blocks_to_keep.
       if (function_blocks_to_keep.count(&module_function) > 0) {
-        logPrint("to keep: " + module_function.getGlobalIdentifier());
+        logPrint("- to keep: " + module_function.getGlobalIdentifier());
 
         for (auto const &block : function_dependency_blocks[&module_function]) {
           // Check if @block is stored in the set of DependencyBlocks inside
@@ -1003,7 +927,7 @@ void APEXPass::removeUnneededStuff(
           }
         }
       } else {
-        logPrint("to remove: " + module_function.getGlobalIdentifier());
+        logPrint("- to remove: " + module_function.getGlobalIdentifier());
         functions_to_remove.insert(&module_function);
       }
     }
