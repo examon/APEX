@@ -7,7 +7,12 @@
 // This file implements APEX as LLVM Pass (APEXPass). See build_and_run.sh for
 // information about how to run APEXPass.
 
+// Current known limitations:
+// - not possible to target global variable
+
 // TODO: Create aliases for long type defs.
+// TODO: Move instance variables from runOnModule to APEXPass
+
 
 #include "apex.h"
 
@@ -83,18 +88,17 @@ bool APEXPass::runOnModule(Module &M) {
                     target_function_id + ".");
   printPath(path);
 
+  logPrintUnderline("Removing functions and dependency blocks that do not "
+                    "affect calculated path.");
+  removeUnneededStuff(M, path, blocks_functions_callgraph,
+                      function_dependency_blocks, source_function_id,
+                      target_function_id);
+
   // TODO: ERROR: inlinable function call in a function with debug info must
-  // have a !dbg location
+  // TODO:   have a !dbg location
   // TODO: Need to setup DebugLoc to the instruction?
   //  logPrintUnderline("Inserting exit call before @target_instruction.");
   //  moduleInsertExitAfterTarget(M, path, target_function);
-
-  logPrintUnderline("Removing functions and dependency blocks that do not "
-                    "affect calculated path.");
-  removeUnneededStuff(path, blocks_functions_callgraph,
-                      function_dependency_blocks, source_function_id,
-                      target_function_id);
-  //  moduleRemoveFunctionsNotInPath(M, apex_dg, path);
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Final module dump.");
@@ -137,15 +141,6 @@ void APEXPass::logDumpModule(const Module &M) {
 // Function utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Prints contents of the vector functions.
-void APEXPass::functionVectorFlatPrint(
-    const std::vector<Function *> &functions) {
-  for (const Function *function : functions) {
-    logPrintFlat(function->getGlobalIdentifier() + ", ");
-  }
-  logPrint("");
-}
-
 /// Collects functions that call function F into vector callers.
 ///
 /// Returns: 0 in case of success, -1 if error.
@@ -165,58 +160,6 @@ int APEXPass::functionGetCallers(const Function *F,
   return 0;
 }
 
-/// Collects functions that are called by function F into vector callees.
-///
-/// Returns: 0 in case of success, -1 if error.
-int APEXPass::functionGetCallees(const Function *F,
-                                 std::vector<Function *> &callees) {
-  if (nullptr == F) {
-    return -1;
-  }
-
-  for (auto &BB : *F) {
-    for (auto &I : BB) {
-      if (auto callinst = dyn_cast<CallInst>(&I)) {
-        Function *called_fcn = callinst->getCalledFunction();
-        if (nullptr == called_fcn) {
-          logPrint("called_fcn is nullptr [ERROR]");
-          return -1;
-        }
-        callees.push_back(called_fcn);
-      }
-    }
-  }
-  return 0;
-}
-
-/// Finds function calls to function with global id @function_name in
-/// the @apex_dg, finds all its reverse and forward dependencies and stores
-/// them into @dependencies vector.
-void APEXPass::functionCollectDependencies(
-    APEXDependencyGraph &apex_dg, std::string function_name,
-    std::vector<LLVMNode *> &dependencies) {
-  for (auto &node_fcn : apex_dg.node_function_map) {
-    LLVMNode *node = node_fcn.first;
-    Value *val = node->getValue();
-
-    if (isa<CallInst>(val)) {
-      CallInst *curr_call_inst = cast<CallInst>(val);
-      Function *curr_fcn = curr_call_inst->getCalledFunction();
-      std::string curr_fcn_name = curr_fcn->getName();
-
-      if (curr_fcn_name == function_name) {
-        std::vector<LLVMNode *> data_dependencies;
-        std::vector<LLVMNode *> rev_data_dependencies;
-        apexDgFindDataDependencies(apex_dg, *node, data_dependencies,
-                                   rev_data_dependencies);
-        // Append found dependencies
-        dependencies.insert(dependencies.end(), data_dependencies.begin(),
-                            data_dependencies.end());
-      }
-    }
-  }
-}
-
 /// Returns true if function @F is protected.
 /// That is, part of the @PROTECTED_FCNS
 /// Protected functions will not be removed at the end of the APEXPass.
@@ -229,16 +172,6 @@ bool APEXPass::functionIsProtected(const Function *F) {
   return false;
 }
 
-/// Returns true if function @F is in @path.
-bool APEXPass::functionInPath(Function *F,
-                              const std::vector<Function *> &path) {
-  for (Function *fcn : path) {
-    if (fcn == F) {
-      return true;
-    }
-  }
-  return false;
-}
 
 // Callgraph utilities
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -422,8 +355,8 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
   logPrint("- done");
 }
 
-/// Stores control/reverse_control/data/reverse_data dependencies of the node
-/// to the apex_node.
+/// Stores control/reverse_control/data/reverse_data dependencies of the @node
+/// to the @apex_node.
 void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
                                       LLVMNode *node) {
   for (auto i = node->control_begin(), e = node->control_end(); i != e; ++i) {
@@ -837,116 +770,6 @@ void APEXPass::moduleFindTargetInstructionsOrDie(
   }
 }
 
-/*
-/// Goes over all functions in module. If there is some function in module
-/// that is not in the @path, put it for removal along it all its dependencies.
-/// Note: Functions that are in @PROTECTED_FCNS, will NOT be removed.
-void APEXPass::moduleRemoveFunctionsNotInPath(
-    Module &M, APEXDependencyGraph &apex_dg,
-    std::vector<std::vector<LLVMNode *>> &path) {
-  logPrint("Collecting functions that are going to be removed:");
-  std::vector<Function *> functions_to_be_removed;
-  {
-    for (auto &module_fcn : M.getFunctionList()) {
-      bool module_fcn_to_be_removed = true;
-      for (Function *path_fcn : path) {
-        if (module_fcn.getGlobalIdentifier() ==
-            path_fcn->getGlobalIdentifier()) {
-          module_fcn_to_be_removed = false;
-        }
-      }
-      // @module_fcn is inside @PROTECTED_FCNS, do not remove it.
-      // Inside @PROTECTED_FCNS could be some function from external library,
-      // or debug functions or whatever that we do not want to optimize out.
-      for (std::string &protected_fcn_id : PROTECTED_FCNS) {
-        if (protected_fcn_id == module_fcn.getGlobalIdentifier()) {
-          module_fcn_to_be_removed = false;
-        }
-      }
-
-      if (module_fcn_to_be_removed) {
-        functions_to_be_removed.push_back(&module_fcn);
-      }
-    }
-
-    logPrintFlat("- path: ");
-    functionVectorFlatPrint(path);
-    logPrintFlat("- functions to be removed: ");
-    functionVectorFlatPrint(functions_to_be_removed);
-    logPrintFlat("- protected functions: ");
-    for (std::string &protected_fcn_id : PROTECTED_FCNS) {
-      logPrintFlat(protected_fcn_id + ", ");
-    }
-    logPrint("");
-  }
-
-  logPrint("\nCollecting instruction dependencies for each function that has "
-           "been marked for removal:");
-  std::vector<LLVMNode *> collected_dependencies;
-  {
-    for (Function *fcn : functions_to_be_removed) {
-      std::string fcn_id = fcn->getGlobalIdentifier();
-      std::vector<LLVMNode *> dependencies;
-      int unique_dependencies = 0;
-
-      functionCollectDependencies(apex_dg, fcn_id, dependencies);
-
-      // Append to the @collected_dependencies instruction that is not
-      // already in the collection.
-      for (LLVMNode *d : dependencies) {
-        bool d_already_in = false;
-        for (LLVMNode *stored_d : collected_dependencies) {
-          if (d == stored_d) {
-            d_already_in = true;
-          }
-        }
-        if (false == d_already_in) {
-          unique_dependencies += 1;
-          collected_dependencies.push_back(d);
-        }
-      }
-
-      logPrint("- function: " + fcn_id);
-      logPrint("-- instruction dependencies count: " +
-               std::to_string(dependencies.size()));
-      logPrint("-- unique instruction dependencies count: " +
-               std::to_string(unique_dependencies));
-    }
-  }
-
-  logPrint("\nRemoving collected instruction dependencies:");
-  {
-    int removed_inst_count = 0;
-
-    for (LLVMNode *n : collected_dependencies) {
-      Instruction *inst = cast<Instruction>(n->getValue());
-
-      if (false == inst->use_empty()) {
-        // I'm not sure if this is even necessary.
-        inst->replaceAllUsesWith(UndefValue::get(inst->getType()));
-      }
-      inst->eraseFromParent();
-      removed_inst_count += 1;
-    }
-
-    logPrint("- removed instructions count: " +
-             std::to_string(removed_inst_count));
-  }
-
-  logPrint("\nRemoving marked function bodies:");
-  {
-    int removed_fcn_count = 0;
-
-    for (Function *f : functions_to_be_removed) {
-      f->eraseFromParent();
-      removed_fcn_count += 1;
-    }
-
-    logPrint("- removed functions count: " + std::to_string(removed_fcn_count));
-  }
-}
-*/
-
 /// Finds FUNCTION with @target_id in @path. Takes predecessor of FUNCTION from
 /// path. In this predecessor, finds the call to the FUNCTION and inserts after
 /// this instruction, call to lib_exit() from lib.c
@@ -1081,9 +904,9 @@ void APEXPass::moduleInsertExitAfterTarget(Module &M,
   }
 }
 
-/// WIP
+/// Figures out what DependencyBlocks and functions to remove and removes them.
 void APEXPass::removeUnneededStuff(
-    const std::vector<DependencyBlock> &path,
+    const Module &M, const std::vector<DependencyBlock> &path,
     std::map<DependencyBlock, std::vector<const Function *>>
         &blocks_functions_callgraph,
     std::map<const Function *, std::vector<DependencyBlock>>
@@ -1152,6 +975,94 @@ void APEXPass::removeUnneededStuff(
     }
   }
 
-  logPrint("\nRemoving everything that we do not want to keep:");
-  // TODO
+  logPrint("\nCollecting everything that we do not want to keep:");
+  std::set<DependencyBlock> blocks_to_remove;
+  std::set<const Function *> functions_to_remove;
+  {
+    for (const auto &module_function : M.getFunctionList()) {
+      if (functionIsProtected(&module_function)) {
+        logPrint("is protected: " + module_function.getGlobalIdentifier());
+        continue;
+      }
+
+      // Check if @module_function is stored in the @function_blocks_to_keep.
+      if (function_blocks_to_keep.count(&module_function) > 0) {
+        logPrint("to keep: " + module_function.getGlobalIdentifier());
+
+        for (auto const &block : function_dependency_blocks[&module_function]) {
+          // Check if @block is stored in the set of DependencyBlocks inside
+          // @function_dependency_blocks.
+          if (function_blocks_to_keep[&module_function].count(block) > 0) {
+            // @block is stored and thus we are going to keep it.
+          } else {
+            blocks_to_remove.insert(block);
+            // logPrint(" - BLOCK DROP:");
+            // for (auto const &node_ptr : block) {
+            //  node_ptr->getValue()->dump();
+            // }
+          }
+        }
+      } else {
+        logPrint("to remove: " + module_function.getGlobalIdentifier());
+        functions_to_remove.insert(&module_function);
+      }
+    }
+    logPrint("- done");
+  }
+
+  logPrint("\nRemoving unwanted blocks:");
+  {
+    for (auto const &block : blocks_to_remove) {
+      // logPrint("Dropping block:"); // dbg
+
+      // Go ahead and remove instructions stored the @block.
+      for (auto const &node_ptr : block) {
+        Instruction *inst = cast<Instruction>(node_ptr->getValue());
+        // inst->dump(); // dbg
+
+        // Watch out for terminators. Do not remove them!
+        if (inst->isTerminator()) {
+          // logPrint("IS TERMINATOR!"); // dbg
+          continue;
+        }
+
+        if (false == inst->use_empty()) {
+          // I'm not sure if this is even necessary.
+          inst->replaceAllUsesWith(UndefValue::get(inst->getType()));
+        }
+        inst->eraseFromParent();
+      }
+      // logPrint(""); // dbg
+    }
+    logPrint("- done");
+  }
+
+  logPrint("\nRemoving unwanted functions:");
+  {
+    for (auto const &function : functions_to_remove) {
+      // Need to get non-const Function ptr.
+      Function *fcn_to_remove = M.getFunction(function->getGlobalIdentifier());
+
+      logPrint("- removing: " + fcn_to_remove->getGlobalIdentifier());
+
+      // Invalidate all function calls to @function. This is to make sure
+      // that we do not have any dangling function calls to @function
+      // after we remove @function. This would produce segfault.
+      fcn_to_remove->replaceAllUsesWith(
+          UndefValue::get(fcn_to_remove->getType()));
+
+      // Invalidating instructions inside function that is going to be
+      // removed is probably not needed. Still, better safe than sorry.
+      for (auto &BB : *fcn_to_remove) {
+        for (auto &I : BB) {
+          if (false == I.use_empty()) {
+            I.replaceAllUsesWith(UndefValue::get(I.getType()));
+          }
+        }
+      }
+
+      // Finally remove @function.
+      fcn_to_remove->eraseFromParent();
+    }
+  }
 }

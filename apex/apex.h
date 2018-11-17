@@ -97,14 +97,8 @@ private:
   void logDumpModule(const Module &M);
 
   // Function utilities.
-  void functionVectorFlatPrint(const std::vector<Function *> &functions);
   int functionGetCallers(const Function *F, std::vector<Function *> &callers);
-  int functionGetCallees(const Function *F, std::vector<Function *> &callees);
-  void functionCollectDependencies(APEXDependencyGraph &apex_dg,
-                                   std::string function_nam,
-                                   std::vector<LLVMNode *> &dependencies);
   bool functionIsProtected(const Function *F);
-  bool functionInPath(Function *F, const std::vector<Function *> &path);
 
   // dg utilities.
   void dgInit(Module &M, LLVMDependenceGraph &dg);
@@ -141,8 +135,6 @@ private:
   void moduleFindTargetInstructionsOrDie(
       Module &M, const std::string &file, const std::string &line,
       std::vector<const Instruction *> &target_instructions);
-  void moduleRemoveFunctionsNotInPath(Module &M, APEXDependencyGraph &apex_dg,
-                                      std::vector<DependencyBlock> &path);
   void moduleInsertExitAfterTarget(Module &M,
                                    const std::vector<Function *> &path,
                                    const std::string &target_id);
@@ -157,7 +149,7 @@ private:
                 std::vector<DependencyBlock> &path);
   void printPath(const std::vector<DependencyBlock> &path);
   void
-  removeUnneededStuff(const std::vector<DependencyBlock> &path,
+  removeUnneededStuff(const Module &M, const std::vector<DependencyBlock> &path,
                       std::map<DependencyBlock, std::vector<const Function *>>
                           &blocks_functions_callgraph,
                       std::map<const Function *, std::vector<DependencyBlock>>

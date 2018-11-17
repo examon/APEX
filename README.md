@@ -1,3 +1,5 @@
+# OUTDATED
+
 # APEX - Active code Path EXtractor
 
 APEX is a tool that can extract active code path from the C program source code
