@@ -94,13 +94,50 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Removing functions and dependency blocks that do not "
                     "affect calculated path.");
   removeUnneededStuff(M, path, blocks_functions_callgraph,
-                      function_dependency_blocks, source_function_id,
-                      target_function_id);
+                      function_dependency_blocks);
 
   logPrintUnderline("Inserting exit call after target instructions.");
-  moduleInsertExitAfterTarget(M, target_function_id);
+  moduleInsertExit(M, target_function_id);
 
-  // TODO: extract data
+  logPrintUnderline("Extracting data.");
+  // TODO: extract operand from target instruction and pass it as arg to dump.
+  {
+    Instruction *insertion_point =
+        const_cast<Instruction *>(target_instructions_.back());
+    std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
+    ArrayRef<Type *> params = makeArrayRef(params_tmp);
+    FunctionType *fType =
+        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
+    Constant *temp = M.getOrInsertFunction("lib_dump_int", fType);
+    Function *dump_fcn = cast<Function>(temp);
+
+    insertion_point->dump();
+    for (unsigned i = 0; i < insertion_point->getNumOperands(); ++i) {
+      logPrint("- op");
+      Value *op = insertion_point->getOperand(i);
+      op->dump();
+    }
+
+    Value *dump_arg_val =
+        ConstantInt::get(Type::getInt32Ty(M.getContext()), 123456);
+    dump_arg_val->dump();
+
+    ArrayRef<Value *> dump_params =
+        makeArrayRef(dump_arg_val);
+    CallInst *dump_call_inst = CallInst::Create(dump_fcn, dump_params, "");
+
+    if (insertion_point->isTerminator()) {
+      logPrintFlat("- @insertion_point is terminator, inserting " +
+                   dump_fcn->getGlobalIdentifier() + " before: ");
+      insertion_point->dump();
+      dump_call_inst->insertBefore(insertion_point);
+    } else {
+      logPrintFlat("- @insertion_point is NOT terminator, inserting " +
+                   dump_fcn->getGlobalIdentifier() + " after: ");
+      insertion_point->dump();
+      dump_call_inst->insertAfter(insertion_point);
+    }
+  }
 
   logPrintUnderline("Stripping debug symbols from every function in module.");
   stripAllDebugSymbols(M);
@@ -775,8 +812,8 @@ void APEXPass::moduleFindTargetInstructionsOrDie(Module &M,
 
 /// Inserts lib_exit() call at the end of the @target_instructions_.
 // TODO: Rename this method.
-void APEXPass::moduleInsertExitAfterTarget(
-    Module &M, const std::string &target_function_id) {
+void APEXPass::moduleInsertExit(Module &M,
+                                const std::string &target_function_id) {
 
   logPrint("Supplied target instructions from: " +
            target_instructions_.back()->getFunction()->getGlobalIdentifier());
@@ -815,9 +852,8 @@ void APEXPass::moduleInsertExitAfterTarget(
     logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
 
     // Create exit call instruction.
-    unsigned EXIT_CODE = 9;
     Value *exit_arg_val =
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), EXIT_CODE);
+        ConstantInt::get(Type::getInt32Ty(M.getContext()), APEX_DONE);
     ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
     // CallInst::Create build call instruction to @exit_fcn that has
     // @exit_params. Empty string "" means that the @exit_call_inst will not
@@ -857,9 +893,7 @@ void APEXPass::removeUnneededStuff(
     std::map<DependencyBlock, std::vector<const Function *>>
         &blocks_functions_callgraph,
     std::map<const Function *, std::vector<DependencyBlock>>
-        &function_dependency_blocks,
-    const std::string &source_function_id,
-    const std::string &target_function_id) {
+        &function_dependency_blocks) {
 
   // Mapping from function to dependency blocks. Blocks belong to function.
   // We are going to keep these function:blocks.

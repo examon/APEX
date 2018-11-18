@@ -42,14 +42,22 @@ bool VERBOSE_DEBUG = false;
 /// Error code when we want to crash APEXPass.
 int FATAL_ERROR = -1;
 
+/// Exit code when we want to successfully exit.
+int APEX_DONE = 0;
+
 /// Function LLVMNodes connected via the data dependencies.
 using DependencyBlock = std::vector<LLVMNode *>;
 
 /// Protected functions IDs. These will not be removed by APEXPass.
 std::vector<std::string> PROTECTED_FCNS = {
-    "lib_test", "lib_exit", "exit", // These come from c-code/lib.c.
-    "printf",                       // Maybe remove prints?
-    "llvm.dbg.declare"              // Introduced with debug symbols.
+    // These belong to the lib_exit()
+    "lib_exit", "exit",
+    // These belong to the lib_dump_int()
+    "lib_dump_int", "abs", "log10", "floor", "fopen", "fputs", "fclose", "exit",
+    "sprintf",
+    "printf", // Maybe remove prints?
+    "llvm.dbg.declare", "llvm.stackrestore",
+    "llvm.stacksave", // Introduced with debug symbols.
 };
 
 /// Command line arguments for opt.
@@ -141,8 +149,7 @@ private:
   void moduleParseCmdLineArgsOrDie(void);
   void moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
                                          const std::string &line);
-  void moduleInsertExitAfterTarget(Module &M,
-                                   const std::string &target_function_id);
+  void moduleInsertExit(Module &M, const std::string &target_function_id);
 
   void findPath(Module &M,
                 std::map<DependencyBlock, std::vector<const Function *>>
@@ -158,9 +165,7 @@ private:
                       std::map<DependencyBlock, std::vector<const Function *>>
                           &blocks_functions_callgraph,
                       std::map<const Function *, std::vector<DependencyBlock>>
-                          &function_dependency_blocks,
-                      const std::string &source_function_id,
-                      const std::string &target_function_id);
+                          &function_dependency_blocks);
   void stripAllDebugSymbols(Module &M);
 };
 
