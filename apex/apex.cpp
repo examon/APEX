@@ -32,7 +32,6 @@ bool APEXPass::runOnModule(Module &M) {
       "main";                          // TODO: Figure out entry automatically?
   std::string target_function_id = ""; // Will be properly initialized later.
 
-  std::vector<const Instruction *> target_instructions;
   std::map<const Function *, std::vector<DependencyBlock>>
       function_dependency_blocks;
   std::map<DependencyBlock, std::vector<const Function *>>
@@ -47,9 +46,9 @@ bool APEXPass::runOnModule(Module &M) {
   moduleParseCmdLineArgsOrDie();
 
   logPrintUnderline("Locating target instructions.");
-  moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE, target_instructions);
+  moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE);
   target_function_id =
-      target_instructions.back()->getFunction()->getGlobalIdentifier();
+      target_instructions_.back()->getFunction()->getGlobalIdentifier();
   logPrint("\nTarget function: " + target_function_id);
 
   logPrintUnderline(
@@ -84,7 +83,7 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Finding path from @" + source_function_id + " to @" +
                     target_function_id + ".");
   findPath(M, blocks_functions_callgraph, function_dependency_blocks,
-           target_instructions, source_function_id, target_function_id, path);
+           source_function_id, target_function_id, path);
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Printing path from @" + source_function_id + " to @" +
@@ -98,14 +97,13 @@ bool APEXPass::runOnModule(Module &M) {
                       function_dependency_blocks, source_function_id,
                       target_function_id);
 
-  logPrintUnderline("DBG print");
-  logDumpModule(M);
-
-  // TODO: ERROR: inlinable function call in a function with debug info must
-  // TODO:   have a !dbg location
-  // TODO: Need to setup DebugLoc to the instruction?
   logPrintUnderline("Inserting exit call after target instructions.");
-  moduleInsertExitAfterTarget(M, target_instructions, target_function_id);
+  moduleInsertExitAfterTarget(M, target_function_id);
+
+  // TODO: extract data
+
+  logPrintUnderline("Stripping debug symbols from every function in module.");
+  stripAllDebugSymbols(M);
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Final module dump.");
@@ -188,15 +186,14 @@ bool APEXPass::functionIsProtected(const Function *F) {
 /// Computes path from source function to target function.
 /// Stores results in the @path. @path contains dependency
 /// blocks that are on the execution flow.
-void APEXPass::findPath(
-    Module &M,
-    std::map<DependencyBlock, std::vector<const Function *>>
-        &blocks_functions_callgraph,
-    std::map<const Function *, std::vector<DependencyBlock>>
-        &function_dependency_blocks,
-    const std::vector<const Instruction *> &target_instructions,
-    const std::string &source_function_id,
-    const std::string &target_function_id, std::vector<DependencyBlock> &path) {
+void APEXPass::findPath(Module &M,
+                        std::map<DependencyBlock, std::vector<const Function *>>
+                            &blocks_functions_callgraph,
+                        std::map<const Function *, std::vector<DependencyBlock>>
+                            &function_dependency_blocks,
+                        const std::string &source_function_id,
+                        const std::string &target_function_id,
+                        std::vector<DependencyBlock> &path) {
 
   // @block_path is used to store path from @source_function to each node.
   std::map<DependencyBlock *, std::vector<DependencyBlock>> block_path;
@@ -245,17 +242,17 @@ void APEXPass::findPath(
   }
 
   // Finding target block. That is, block where target instruction are.
-  // We use heuristic and take last instruction from the @target_instructions.
-  // The reason is that inside @target_instructions may be more instructions
+  // We use heuristic and take last instruction from the @target_instructions_.
+  // The reason is that inside @target_instructions_ may be more instructions
   // than present in target block (especially at the beginning), so
   DependencyBlock *target_block = nullptr;
   for (auto &block :
        function_dependency_blocks[M.getFunction(target_function_id)]) {
     for (const auto &node_ptr : block) {
-      if (target_instructions.back() == node_ptr->getValue()) {
+      if (target_instructions_.back() == node_ptr->getValue()) {
         // Check the target line, just in case.
         if (std::to_string(
-                target_instructions.back()->getDebugLoc().getLine()) ==
+                target_instructions_.back()->getDebugLoc().getLine()) ==
             ARG_LINE) {
           target_block = &block;
         }
@@ -745,57 +742,58 @@ void APEXPass::moduleParseCmdLineArgsOrDie(void) {
 /// (this can be one or multiple instructions).
 ///
 /// Dies if unable to find instructions.
-void APEXPass::moduleFindTargetInstructionsOrDie(
-    Module &M, const std::string &file, const std::string &line,
-    std::vector<const Instruction *> &target_instructions) {
+void APEXPass::moduleFindTargetInstructionsOrDie(Module &M,
+                                                 const std::string &file,
+                                                 const std::string &line) {
   for (const auto &F : M) {
     for (const auto &BB : F) {
       for (const auto &I : BB) {
-        if (auto const inst_loc_ptr = I.getDebugLoc()) {
-          const std::string line = std::to_string(inst_loc_ptr->getLine());
-          const std::string file = inst_loc_ptr->getFilename();
+        if (auto const debug_info = I.getDebugLoc()) {
+          const std::string line = std::to_string(debug_info->getLine());
+          const std::string file = debug_info->getFilename();
           // std::string dir = inst_loc_ptr->getDirectory();
           if (file == ARG_FILE && line == ARG_LINE) {
             // Found instruction that matches ARG_FILE+ARG_LINE
-            target_instructions.push_back(&I);
+            target_instructions_.push_back(&I);
           }
         }
       }
     }
   }
 
-  if (target_instructions.empty()) {
+  if (target_instructions_.empty()) {
     logPrint("ERROR: Could not locate target instructions!");
     exit(FATAL_ERROR);
   }
 
   logPrint("Instructions at: file = " + ARG_FILE + ", line = " + ARG_LINE);
   logPrint("");
-  for (const auto inst_ptr : target_instructions) {
+  for (const auto inst_ptr : target_instructions_) {
     inst_ptr->dump();
   }
 }
 
-/// Finds FUNCTION with @target_id in @path. Takes predecessor of FUNCTION from
-/// path. In this predecessor, finds the call to the FUNCTION and inserts after
-/// this instruction, call to lib_exit() from lib.c
+/// Inserts lib_exit() call at the end of the @target_instructions_.
+// TODO: Rename this method.
 void APEXPass::moduleInsertExitAfterTarget(
-    Module &M, const std::vector<const Instruction *> &target_instructions,
-    const std::string &target_function_id) {
+    Module &M, const std::string &target_function_id) {
 
   logPrint("Supplied target instructions from: " +
-           target_instructions.back()->getFunction()->getGlobalIdentifier());
-  for (const auto &target_instruction : target_instructions) {
+           target_instructions_.back()->getFunction()->getGlobalIdentifier());
+  for (const auto &target_instruction : target_instructions_) {
+    if (nullptr == target_instruction) {
+      continue;
+    }
     target_instruction->dump();
   }
 
   logPrint("\nSetting insertion point:");
   Instruction *insertion_point =
-      const_cast<Instruction *>(target_instructions.back());
-  logPrintFlat("- after: ");
-  target_instructions.back()->dump();
+      const_cast<Instruction *>(target_instructions_.back());
+  logPrintFlat("-");
+  insertion_point->dump();
 
-  logPrint("\nInserting call instruction lib_exit() after insertion point:");
+  logPrint("\nInserting instruction lib_exit():");
   {
     // Create vector of types and put one integer into this vector.
     std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
@@ -817,27 +815,40 @@ void APEXPass::moduleInsertExitAfterTarget(
     logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
 
     // Create exit call instruction.
-    Value *exit_arg_val = ConstantInt::get(Type::getInt32Ty(M.getContext()), 9);
+    unsigned EXIT_CODE = 9;
+    Value *exit_arg_val =
+        ConstantInt::get(Type::getInt32Ty(M.getContext()), EXIT_CODE);
     ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
     // CallInst::Create build call instruction to @exit_fcn that has
     // @exit_params. Empty string "" means that the @exit_call_inst will not
     // have return variable.
-    // @exit_call_inst is inserted BEFORE @chosen_instruction.
     CallInst *exit_call_inst = CallInst::Create(exit_fcn, exit_params, "");
 
-    // TODO: We need to make exit_call_inst terminator if we insert AFTER.
-    exit_call_inst->insertAfter(insertion_point);
+    // If the @insertion point is terminator, insert @exit_call_inst before it.
+    // Otherwise, basic blocks will not end with terminator.
+    // TODO: Will this inconsistency cause problems?
+    if (insertion_point->isTerminator()) {
+      logPrintFlat("- @insertion_point is terminator, inserting " +
+                   exit_fcn->getGlobalIdentifier() + " before: ");
+      insertion_point->dump();
+      exit_call_inst->insertBefore(insertion_point);
+    } else {
+      logPrintFlat("- @insertion_point is NOT terminator, inserting " +
+                   exit_fcn->getGlobalIdentifier() + " after: ");
+      insertion_point->dump();
+      exit_call_inst->insertAfter(insertion_point);
+    }
 
+    // Final check.
     if (nullptr == exit_call_inst) {
-      logPrint("ERROR: could not create lib_exit call instruction.");
+      logPrint("ERROR: could not create " + exit_fcn->getGlobalIdentifier() +
+               " call instruction.");
       exit(-1);
     }
-    logPrintFlat("- lib_exit call instruction created: ");
+    logPrintFlat("- " + exit_fcn->getGlobalIdentifier() +
+                 " call instruction created: ");
     exit_call_inst->dump();
-
-    // TODO: Add debug symbols to the exit_call_inst.
   }
-
 }
 
 /// Figures out what DependencyBlocks and functions to remove and removes them.
@@ -954,7 +965,20 @@ void APEXPass::removeUnneededStuff(
           // I'm not sure if this is even necessary.
           inst->replaceAllUsesWith(UndefValue::get(inst->getType()));
         }
-        inst->eraseFromParent();
+
+        // Do not erase instruction that is inside @target_instructions_.
+        // We need those instructions intact.
+        bool inst_is_target = false;
+        for (const auto &target_inst : target_instructions_) {
+          if (target_inst == inst) {
+            inst_is_target = true;
+            break;
+          }
+        }
+        if (false == inst_is_target) {
+          // To be sure that we do not erase one of the target instructions.
+          inst->eraseFromParent();
+        }
       }
       // logPrint(""); // dbg
     }
@@ -989,4 +1013,16 @@ void APEXPass::removeUnneededStuff(
       fcn_to_remove->eraseFromParent();
     }
   }
+}
+
+/// Strips debug symbols from every function in module @M.
+///
+/// We do this because LLVM verifier would blow up after we inserted into the
+/// module instructions without debug symbols.
+/// This way, module will be consistent.
+void APEXPass::stripAllDebugSymbols(Module &M) {
+  for (auto &F : M) {
+    llvm::stripDebugInfo(F);
+  }
+  logPrint("- done");
 }

@@ -17,7 +17,8 @@ int j(int n) {
 
 int x(void) {
   printf("x: in\n");
-  int j_ret = j(1);
+  int j_ret;
+  j_ret = j(1);
   return j_ret;
 }
 

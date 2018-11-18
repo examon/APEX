@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/Metadata.h" // For StorageType
 #include <llvm/ADT/APInt.h>
 #include <llvm/Analysis/CallGraph.h>
 #include <llvm/IR/DebugInfoMetadata.h>
@@ -91,6 +94,9 @@ public:
   bool runOnModule(Module &M) override;
 
 private:
+  // Target instructions that correspond to the user input.
+  std::vector<const Instruction *> target_instructions_;
+
   // Logging utilities.
   void logPrint(const std::string &message);
   void logPrintUnderline(const std::string &message);
@@ -133,19 +139,16 @@ private:
 
   // Other utilities.
   void moduleParseCmdLineArgsOrDie(void);
-  void moduleFindTargetInstructionsOrDie(
-      Module &M, const std::string &file, const std::string &line,
-      std::vector<const Instruction *> &target_instructions);
-  void moduleInsertExitAfterTarget(
-      Module &M, const std::vector<const Instruction *> &target_instructions,
-      const std::string &target_function_id);
+  void moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
+                                         const std::string &line);
+  void moduleInsertExitAfterTarget(Module &M,
+                                   const std::string &target_function_id);
 
   void findPath(Module &M,
                 std::map<DependencyBlock, std::vector<const Function *>>
                     &blocks_functions_callgraph,
                 std::map<const Function *, std::vector<DependencyBlock>>
                     &function_dependency_blocks,
-                const std::vector<const Instruction *> &target_instructions,
                 const std::string &source_function_id,
                 const std::string &target_function_id,
                 std::vector<DependencyBlock> &path);
@@ -158,6 +161,7 @@ private:
                           &function_dependency_blocks,
                       const std::string &source_function_id,
                       const std::string &target_function_id);
+  void stripAllDebugSymbols(Module &M);
 };
 
 /// Registering our own pass, so it can be ran via opt.
