@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <math.h>
 
-/// Function used for getting out of the program, usually after calling @lib_dump_int().
-void lib_exit(int exit_code) {
+#define APEX_OUTPUT "apex.out"
+
+/// Function used for getting out of the program, usually after calling @_apex_extract_int().
+void _apex_exit(int exit_code) {
   exit(exit_code);
 }
 
 /// Function used for dumping value @i to file @APEX_OUTPUT.
-void lib_dump_int(int i) {
-#define APEX_OUTPUT "apex.out"
+void _apex_extract_int(int i) {
   // Figure out number of digits @i has.
   // So we can allocate big enough buffer.
   int i_digits = 0;

@@ -5,6 +5,7 @@ doc:
 	doxygen Doxyfile
 
 clean:
+	rm -rf apex.out
 	rm -rf apex/build
 	rm -rf apex/cmake-build-debug
 	rm -rf build

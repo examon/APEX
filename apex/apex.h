@@ -50,14 +50,28 @@ using DependencyBlock = std::vector<LLVMNode *>;
 
 /// Protected functions IDs. These will not be removed by APEXPass.
 std::vector<std::string> PROTECTED_FCNS = {
-    // These belong to the lib_exit()
-    "lib_exit", "exit",
-    // These belong to the lib_dump_int()
-    "lib_dump_int", "abs", "log10", "floor", "fopen", "fputs", "fclose", "exit",
+    // These belong to the _apex_exit function.
+    "_apex_exit",
+    "exit",
+
+    // These belong to the _apex_extract_int function.
+    "_apex_extract_int",
+    "abs",
+    "log10",
+    "floor",
+    "fopen",
+    "fputs",
+    "fclose",
+    "exit",
     "sprintf",
-    "printf", // Maybe remove prints?
-    "llvm.dbg.declare", "llvm.stackrestore",
-    "llvm.stacksave", // Introduced with debug symbols.
+
+    // Keep printf calls.
+    "printf",
+
+    // Introduced with debug symbols.
+    "llvm.dbg.declare",
+    "llvm.stackrestore",
+    "llvm.stacksave",
 };
 
 /// Command line arguments for opt.
@@ -149,7 +163,8 @@ private:
   void moduleParseCmdLineArgsOrDie(void);
   void moduleFindTargetInstructionsOrDie(Module &M, const std::string &file,
                                          const std::string &line);
-  void moduleInsertExit(Module &M, const std::string &target_function_id);
+  void moduleInjectExitExtract(Module &M,
+                               const std::string &target_function_id);
 
   void findPath(Module &M,
                 std::map<DependencyBlock, std::vector<const Function *>>

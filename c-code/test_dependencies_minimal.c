@@ -36,7 +36,7 @@ int n(void) {
 
 int flag(void) {
   printf("flag: in\n");
-  return 0;
+  return 100;
 }
 
 int main(int argc, char **argv) {

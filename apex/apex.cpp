@@ -66,10 +66,10 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Constructing function dependency blocks.");
   apexDgComputeFunctionDependencyBlocks(M, apex_dg, function_dependency_blocks);
 
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing calculated function dependency blocks.");
-    apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
-  }
+  //  if (VERBOSE_DEBUG) {
+  logPrintUnderline("Printing calculated function dependency blocks.");
+  apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
+  //  }
 
   logPrintUnderline("Constructing dependency blocks to functions callgraph.");
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
@@ -96,48 +96,8 @@ bool APEXPass::runOnModule(Module &M) {
   removeUnneededStuff(M, path, blocks_functions_callgraph,
                       function_dependency_blocks);
 
-  logPrintUnderline("Inserting exit call after target instructions.");
-  moduleInsertExit(M, target_function_id);
-
-  logPrintUnderline("Extracting data.");
-  // TODO: extract operand from target instruction and pass it as arg to dump.
-  {
-    Instruction *insertion_point =
-        const_cast<Instruction *>(target_instructions_.back());
-    std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
-    ArrayRef<Type *> params = makeArrayRef(params_tmp);
-    FunctionType *fType =
-        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
-    Constant *temp = M.getOrInsertFunction("lib_dump_int", fType);
-    Function *dump_fcn = cast<Function>(temp);
-
-    insertion_point->dump();
-    for (unsigned i = 0; i < insertion_point->getNumOperands(); ++i) {
-      logPrint("- op");
-      Value *op = insertion_point->getOperand(i);
-      op->dump();
-    }
-
-    Value *dump_arg_val =
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), 123456);
-    dump_arg_val->dump();
-
-    ArrayRef<Value *> dump_params =
-        makeArrayRef(dump_arg_val);
-    CallInst *dump_call_inst = CallInst::Create(dump_fcn, dump_params, "");
-
-    if (insertion_point->isTerminator()) {
-      logPrintFlat("- @insertion_point is terminator, inserting " +
-                   dump_fcn->getGlobalIdentifier() + " before: ");
-      insertion_point->dump();
-      dump_call_inst->insertBefore(insertion_point);
-    } else {
-      logPrintFlat("- @insertion_point is NOT terminator, inserting " +
-                   dump_fcn->getGlobalIdentifier() + " after: ");
-      insertion_point->dump();
-      dump_call_inst->insertAfter(insertion_point);
-    }
-  }
+  logPrintUnderline("Injecting exit and extract calls.");
+  moduleInjectExitExtract(M, target_function_id);
 
   logPrintUnderline("Stripping debug symbols from every function in module.");
   stripAllDebugSymbols(M);
@@ -707,7 +667,7 @@ void APEXPass::apexDgPrintFunctionDependencyBlocks(
     std::string fcn_id = function_blocks.first->getGlobalIdentifier();
     logPrint("FUNCTION: " + fcn_id);
     for (auto &block : function_blocks.second) {
-      logPrint("- BLOCK:");
+      logPrint("- COMPONENT:");
       for (auto &node : block) {
         logPrintFlat("  ");
         node->getValue()->dump();
@@ -751,7 +711,8 @@ void APEXPass::apexDgPrintBlocksFunctionsCallgraph(
   for (const auto &block_functions : blocks_functions_callgraph) {
     const Instruction *node_inst =
         cast<Instruction>(block_functions.first.front()->getValue());
-    logPrint("BLOCK: in " + node_inst->getFunction()->getGlobalIdentifier());
+    logPrint("COMPONENT: in " +
+             node_inst->getFunction()->getGlobalIdentifier());
     for (const auto &node : block_functions.first) {
       node->getValue()->dump();
     }
@@ -810,10 +771,10 @@ void APEXPass::moduleFindTargetInstructionsOrDie(Module &M,
   }
 }
 
-/// Inserts lib_exit() call at the end of the @target_instructions_.
-// TODO: Rename this method.
-void APEXPass::moduleInsertExit(Module &M,
-                                const std::string &target_function_id) {
+/// Injects _apex_exit() call at the end of the @target_instructions_.
+/// Injects lib_dump_int() call before lib_exit().
+void APEXPass::moduleInjectExitExtract(Module &M,
+                                       const std::string &target_function_id) {
 
   logPrint("Supplied target instructions from: " +
            target_instructions_.back()->getFunction()->getGlobalIdentifier());
@@ -824,13 +785,13 @@ void APEXPass::moduleInsertExit(Module &M,
     target_instruction->dump();
   }
 
-  logPrint("\nSetting insertion point:");
-  Instruction *insertion_point =
+  logPrint("\nSetting injection point:");
+  Instruction *injection_point =
       const_cast<Instruction *>(target_instructions_.back());
   logPrintFlat("-");
-  insertion_point->dump();
+  injection_point->dump();
 
-  logPrint("\nInserting instruction lib_exit():");
+  logPrint("\nInjecting call instruction to _apex_exit():");
   {
     // Create vector of types and put one integer into this vector.
     std::vector<Type *> params_tmp = {Type::getInt32Ty(M.getContext())};
@@ -839,51 +800,110 @@ void APEXPass::moduleInsertExit(Module &M,
 
     // Create function that returns void and has parameters that are
     // specified in the @params (that is, one Int32).
-    FunctionType *fType =
+    FunctionType *fcn_type =
         FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
 
     // Load exit function into variable.
-    Constant *temp = M.getOrInsertFunction("lib_exit", fType);
+    Constant *temp = M.getOrInsertFunction("_apex_exit", fcn_type);
     if (nullptr == temp) {
       logPrint("ERROR: lib_exit function is not in symbol table.");
       exit(-1);
     }
-    Function *exit_fcn = cast<Function>(temp);
-    logPrint("- loaded function: " + exit_fcn->getGlobalIdentifier());
+    Function *_apex_exit_fcn = cast<Function>(temp);
+    logPrint("- loaded function: " + _apex_exit_fcn->getGlobalIdentifier());
 
     // Create exit call instruction.
-    Value *exit_arg_val =
+    Value *_apex_exit_fcn_arg_val =
         ConstantInt::get(Type::getInt32Ty(M.getContext()), APEX_DONE);
-    ArrayRef<Value *> exit_params = makeArrayRef(exit_arg_val);
+    ArrayRef<Value *> _apex_exit_fcn_params =
+        makeArrayRef(_apex_exit_fcn_arg_val);
     // CallInst::Create build call instruction to @exit_fcn that has
-    // @exit_params. Empty string "" means that the @exit_call_inst will not
-    // have return variable.
-    CallInst *exit_call_inst = CallInst::Create(exit_fcn, exit_params, "");
+    // @_apex_exit_fcn_params. Empty string "" means that the
+    // @_apex_exit_call_inst will not have return variable.
+    CallInst *_apex_exit_call_inst =
+        CallInst::Create(_apex_exit_fcn, _apex_exit_fcn_params, "");
 
-    // If the @insertion point is terminator, insert @exit_call_inst before it.
-    // Otherwise, basic blocks will not end with terminator.
+    // If the @insertion point is terminator, insert @_apex_exit_call_inst
+    // before it. Otherwise, basic blocks will not end with terminator.
     // TODO: Will this inconsistency cause problems?
-    if (insertion_point->isTerminator()) {
-      logPrintFlat("- @insertion_point is terminator, inserting " +
-                   exit_fcn->getGlobalIdentifier() + " before: ");
-      insertion_point->dump();
-      exit_call_inst->insertBefore(insertion_point);
+    if (injection_point->isTerminator()) {
+      logPrintFlat("- @injection_point is terminator, inserting " +
+                   _apex_exit_fcn->getGlobalIdentifier() + " before: ");
+      injection_point->dump();
+      _apex_exit_call_inst->insertBefore(injection_point);
     } else {
-      logPrintFlat("- @insertion_point is NOT terminator, inserting " +
-                   exit_fcn->getGlobalIdentifier() + " after: ");
-      insertion_point->dump();
-      exit_call_inst->insertAfter(insertion_point);
+      logPrintFlat("- @injection_point is NOT terminator, inserting " +
+                   _apex_exit_fcn->getGlobalIdentifier() + " after: ");
+      injection_point->dump();
+      _apex_exit_call_inst->insertAfter(injection_point);
     }
 
     // Final check.
-    if (nullptr == exit_call_inst) {
-      logPrint("ERROR: could not create " + exit_fcn->getGlobalIdentifier() +
-               " call instruction.");
+    if (nullptr == _apex_exit_call_inst) {
+      logPrint("ERROR: could not create " +
+               _apex_exit_fcn->getGlobalIdentifier() + " call instruction.");
       exit(-1);
     }
-    logPrintFlat("- " + exit_fcn->getGlobalIdentifier() +
+    logPrintFlat("- " + _apex_exit_fcn->getGlobalIdentifier() +
                  " call instruction created: ");
-    exit_call_inst->dump();
+    _apex_exit_call_inst->dump();
+
+    // Set insertion point to the exit call we just inserted.
+    // All new instructions are going to be inserted before exit call.
+    injection_point = _apex_exit_call_inst;
+  }
+
+  logPrint("\nInjecting call instruction to _apex_extract_int():");
+  {
+    // Load _apex_extract_int() from lib.c and save it.
+    Instruction *last_target =
+        const_cast<Instruction *>(target_instructions_.back());
+    std::vector<Type *> params_tmp = {PointerType::getInt32Ty(M.getContext())};
+    ArrayRef<Type *> params = makeArrayRef(params_tmp);
+    FunctionType *fcn_type =
+        FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
+    Constant *temp = M.getOrInsertFunction("_apex_extract_int", fcn_type);
+    Function *_apex_extract_int_fcn = cast<Function>(temp);
+    logPrint("- loaded function: " +
+             _apex_extract_int_fcn->getGlobalIdentifier());
+
+    logPrintFlat("- last of the target functions: ");
+    last_target->dump();
+
+    if (false == isa<StoreInst>(last_target)) {
+      logPrint("ERROR: Invalid target instruction! It has to be StoreInst!");
+      exit(FATAL_ERROR);
+    }
+
+    if (2 != last_target->getNumOperands()) {
+      logPrint("ERROR: Invalid target instruction! It has to have 2 operands!");
+      exit(FATAL_ERROR);
+    }
+
+    // Example of instruction: store i32 %call, i32* %f, allign 4
+    // @_apex_extract_int_arg would be second operand: i32* %f
+    Value *_apex_extract_int_arg =
+        last_target->getOperand(last_target->getNumOperands() - 1);
+    logPrintFlat("- last of the target instructions, second op: ");
+    _apex_extract_int_arg->dump();
+
+    // Now we need to load that pointer to i32 into classic i32.
+    // Because @lib_extract_int takes i32 instead of i32*.
+    LoadInst *_apex_extract_int_arg_loadinst = new LoadInst(
+        _apex_extract_int_arg, "_apex_extract_int_arg", injection_point);
+    logPrintFlat("- created load instruction: ");
+    _apex_extract_int_arg_loadinst->dump();
+
+    // Now make callinst to _apex_extract_int with the correct argument
+    // (that is i32 and not i32*).
+    std::vector<Value *> dump_params = {_apex_extract_int_arg_loadinst};
+    CallInst *lib_extract_int_fcn_callinst =
+        CallInst::Create(_apex_extract_int_fcn, dump_params, "");
+
+    logPrintFlat("- " + _apex_extract_int_fcn->getGlobalIdentifier() +
+                 " call instruction created: ");
+    lib_extract_int_fcn_callinst->dump();
+    lib_extract_int_fcn_callinst->insertBefore(injection_point);
   }
 }
 
