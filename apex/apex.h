@@ -126,7 +126,6 @@ private:
   void logDumpModule(const Module &M);
 
   // Function utilities.
-  int functionGetCallers(const Function *F, std::vector<Function *> &callers);
   bool functionIsProtected(const Function *F);
 
   // dg utilities.

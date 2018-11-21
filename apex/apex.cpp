@@ -143,25 +143,6 @@ void APEXPass::logDumpModule(const Module &M) {
 // Function utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Collects functions that call function F into vector callers.
-///
-/// Returns: 0 in case of success, -1 if error.
-int APEXPass::functionGetCallers(const Function *F,
-                                 std::vector<Function *> &callers) {
-  if (nullptr == F) {
-    return -1;
-  }
-
-  for (const Use &use : F->uses()) {
-    if (Instruction *UserInst = dyn_cast<Instruction>(use.getUser())) {
-      callers.push_back(UserInst->getFunction());
-    } else {
-      return -1;
-    }
-  }
-  return 0;
-}
-
 /// Returns true if function @F is protected.
 /// That is, part of the @PROTECTED_FCNS
 /// Protected functions will not be removed at the end of the APEXPass.
