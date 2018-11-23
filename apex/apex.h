@@ -105,6 +105,9 @@ struct APEXDependencyGraph {
   // Mapping of nodes to dependencies & functions.
   std::map<LLVMNode *, std::vector<LLVMNode *>> node_data_dependencies_map;
   std::map<LLVMNode *, std::vector<LLVMNode *>> node_rev_data_dependencies_map;
+  std::map<LLVMNode *, std::vector<LLVMNode *>> node_control_dependencies_map;
+  std::map<LLVMNode *, std::vector<LLVMNode *>>
+      node_rev_control_dependencies_map;
   std::map<LLVMNode *, APEXDependencyFunction *> node_function_map;
 };
 
@@ -134,7 +137,7 @@ private:
   // apex dg utilities.
   void apexDgInit(APEXDependencyGraph &apex_dg);
   void apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node, LLVMNode *node);
-  void apexDgPrintDataDependenciesCompact(APEXDependencyGraph &apex_dg);
+  void apexDgPrintDependenciesCompact(APEXDependencyGraph &apex_dg);
 
   void apexDgFindDataDependencies(
       APEXDependencyGraph &apex_dg, LLVMNode &node,
@@ -175,7 +178,7 @@ private:
                 std::vector<DependencyBlock> &path);
   void printPath(const std::vector<DependencyBlock> &path);
   void
-  removeUnneededStuff(const Module &M, const std::vector<DependencyBlock> &path,
+  removeUnneededStuff(const Module &M, std::vector<DependencyBlock> &path,
                       std::map<DependencyBlock, std::vector<const Function *>>
                           &blocks_functions_callgraph,
                       std::map<const Function *, std::vector<DependencyBlock>>

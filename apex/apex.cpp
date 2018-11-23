@@ -13,12 +13,31 @@
 // TODO: Create aliases for long type defs.
 // TODO: Move instance variables from runOnModule to APEXPass
 // TODO: move c-code/lib.c to the apex dir
+// TODO: user I.getprevnode() or I.getnextnode() to for injecting
+
+// TODO: do not remove instructions that depend on branching
 
 #include "apex.h"
 
 /// Running on each module.
 bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("APEXPass START.");
+
+  //  for (const auto &F : M) {
+  //    if (F.getGlobalIdentifier() != "main") {
+  //      continue;
+  //    }
+  //    for (const auto &BB : F) {
+  //      std::string bb_name = BB.getName();
+  //      logPrint("BB: " + bb_name);
+  //      for (const auto &I : BB) {
+  //        I.dump();
+  //        errs() << I.getParent()->getName() << "\n";
+  //      }
+  //      logPrint("");
+  //    }
+  //  }
+  //  exit(FATAL_ERROR);
 
   APEXDependencyGraph apex_dg;
   LLVMDependenceGraph dg;
@@ -60,7 +79,7 @@ bool APEXPass::runOnModule(Module &M) {
 
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Printing data dependencies from apex_dg.");
-    apexDgPrintDataDependenciesCompact(apex_dg);
+    apexDgPrintDependenciesCompact(apex_dg);
   }
 
   logPrintUnderline("Constructing function dependency blocks.");
@@ -71,12 +90,12 @@ bool APEXPass::runOnModule(Module &M) {
   apexDgPrintFunctionDependencyBlocks(function_dependency_blocks);
   //  }
 
-  logPrintUnderline("Constructing dependency blocks to functions callgraph.");
+  logPrintUnderline("Constructing dependency blocks to functions call graph.");
   apexDgConstructBlocksFunctionsCallgraph(function_dependency_blocks,
                                           blocks_functions_callgraph);
 
   if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing dependency block to functions callgraph.");
+    logPrintUnderline("Printing dependency block to functions call graph.");
     apexDgPrintBlocksFunctionsCallgraph(blocks_functions_callgraph);
   }
 
@@ -85,11 +104,11 @@ bool APEXPass::runOnModule(Module &M) {
   findPath(M, blocks_functions_callgraph, function_dependency_blocks,
            source_function_id, target_function_id, path);
 
-  if (VERBOSE_DEBUG) {
-    logPrintUnderline("Printing path from @" + source_function_id + " to @" +
-                      target_function_id + ".");
-    printPath(path);
-  }
+  //  if (VERBOSE_DEBUG) {
+  logPrintUnderline("Printing path from @" + source_function_id + " to @" +
+                    target_function_id + ".");
+  printPath(path);
+  //  }
 
   logPrintUnderline("Removing functions and dependency blocks that do not "
                     "affect calculated path.");
@@ -316,7 +335,9 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
         apex_node.node = node;
         apex_node.value = node->getValue();
 
+        // Store data & control dependencies from @node to @apex_node.
         apexDgGetBlockNodeInfo(apex_node, node);
+
         apex_function.nodes.push_back(apex_node);
       }
     }
@@ -324,12 +345,21 @@ void APEXPass::apexDgInit(APEXDependencyGraph &apex_dg) {
   }
   logPrint("- done");
 
-  logPrint("Storing data dependencies into @apex_dg structures:");
+  logPrint("Storing data and control dependencies into @apex_dg structures:");
   for (auto &apex_dg_function : apex_dg.functions) {
     for (auto &node : apex_dg_function.nodes) {
+      // Data & reverse data dependencies.
       apex_dg.node_data_dependencies_map[node.node] = node.data_dependencies;
       apex_dg.node_rev_data_dependencies_map[node.node] =
           node.rev_data_dependencies;
+
+      // Control & reverse control dependencies.
+      apex_dg.node_control_dependencies_map[node.node] =
+          node.control_depenencies;
+      apex_dg.node_rev_control_dependencies_map[node.node] =
+          node.rev_control_depenencies;
+
+      // Map function to node.
       apex_dg.node_function_map[node.node] = &apex_dg_function;
     }
   }
@@ -363,24 +393,40 @@ void APEXPass::apexDgGetBlockNodeInfo(APEXDependencyNode &apex_node,
 }
 
 /// Pretty prints @apex_dg, but only with data dependencies.
-void APEXPass::apexDgPrintDataDependenciesCompact(
-    APEXDependencyGraph &apex_dg) {
+void APEXPass::apexDgPrintDependenciesCompact(APEXDependencyGraph &apex_dg) {
   for (APEXDependencyFunction &function : apex_dg.functions) {
     std::string fcn_name = function.value->getName();
+
+    // TODO: dbg
+    if (fcn_name != "main") {
+      continue;
+    }
+
     logPrint("\n===> " + fcn_name);
     for (APEXDependencyNode &node : function.nodes) {
 
       logPrintFlat("\n- node:");
       node.value->dump();
-      logPrint("[dd]:");
 
+      // Pretty print data & reverse data dependencies.
+      logPrint("[dd]:");
       for (LLVMNode *dd : node.data_dependencies) {
         dd->getValue()->dump();
       }
-
       logPrint("[rev_dd]:");
       for (LLVMNode *rev_dd : node.rev_data_dependencies) {
         rev_dd->getValue()->dump();
+      }
+
+      // Pretty print control & reverse control dependencies.
+      logPrint("[cd]:");
+      for (LLVMNode *cd : node.control_depenencies) {
+        cd->getValue()->dump();
+      }
+
+      logPrint("[rev_cd]:");
+      for (LLVMNode *rev_cd : node.rev_control_depenencies) {
+        rev_cd->getValue()->dump();
       }
     }
   }
@@ -890,7 +936,7 @@ void APEXPass::moduleInjectExitExtract(Module &M,
 
 /// Figures out what DependencyBlocks and functions to remove and removes them.
 void APEXPass::removeUnneededStuff(
-    const Module &M, const std::vector<DependencyBlock> &path,
+    const Module &M, std::vector<DependencyBlock> &path,
     std::map<DependencyBlock, std::vector<const Function *>>
         &blocks_functions_callgraph,
     std::map<const Function *, std::vector<DependencyBlock>>
@@ -900,17 +946,146 @@ void APEXPass::removeUnneededStuff(
   // We are going to keep these function:blocks.
   std::map<const Function *, std::set<DependencyBlock>> function_blocks_to_keep;
 
-  logPrint("Computing what functions and dependency blocks we want to keep:");
-  {
-    std::vector<DependencyBlock> queue;
-    std::vector<DependencyBlock> visited;
+  // @queue and @visited are going to be used for BFS search of dependencies.
+  std::vector<DependencyBlock> queue;
+  std::vector<DependencyBlock> visited;
 
-    // Reverse iterate @path so we begin BFS with the first node instead with
-    // the last.
-    for (auto it = path.rbegin(); it != path.rend(); ++it) {
-      queue.push_back(*it);
+  logPrint("Checking if we have any branching dependent on the @path:");
+  {
+    for (const auto &path_block : path) {
+      // Set of basic blocks that nodes inside @path_node belong to.
+      std::set<const BasicBlock *> block_bbs;
+
+      bool block_has_inst_in_if_bb = false;
+
+      logPrint("- investigating block, collecting basic blocks:"); // dbg
+      for (const auto &node : path_block) {
+        const Instruction *node_inst = cast<Instruction>(node->getValue());
+        std::string bb_name = node_inst->getParent()->getName();
+        block_bbs.insert(node_inst->getParent());
+
+        logPrintFlat("  [" + bb_name + "]:"); // dbg
+        node->getValue()->dump();             // dbg
+
+        // Get first 3 chars of the basic block name.
+        // We are looking for "if.then" basic blocks.
+        if (bb_name.substr(0, 3) == "if.") {
+          block_has_inst_in_if_bb = true;
+        }
+      }
+
+      // dbg
+      logPrint("  - collected basic blocks:");
+      for (const auto &bb : block_bbs) {
+        std::string bb_name = bb->getName();
+        logPrint("    - " + bb_name);
+      }
+
+      // @path_block is good to go, no branching is dependent on it.
+      if (false == block_has_inst_in_if_bb) {
+        logPrint("  - block has no instruction in if.* basic block"); // dbg
+        continue;
+      }
+      logPrint("  - block has some instruction in if.* basic block, check "
+               "more:"); // dbg
+
+      // We know that some instructions from @block_path are in the BB
+      // that is designated as if.*.
+      // Find branch instruction that services this BB and add block
+      // associated with this branch instruction to the @path.
+
+      // Function that @path_block belongs to.
+      const Function *block_function =
+          cast<Instruction>(path_block.front()->getValue())->getFunction();
+
+      logPrint("    - block in fcn: " + block_function->getGlobalIdentifier());
+      logPrint("    - checking fcn for br instructions:");
+      for (const auto &BB : *block_function) {
+        for (const auto &I : BB) {
+
+          if (isa<BranchInst>(I)) {
+            logPrintFlat("      - ok, we have br inst: ");
+            I.dump();
+
+            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+              Value *op = I.getOperand(i);
+              std::string op_name = op->getName();
+              logPrint("         - op: " + op_name);
+
+              for (const auto &bb : block_bbs) {
+                // We have branch instruction which can send execution into
+                // block that is currently in @path.
+                // Get block associated with this branch instruction and put
+                // this block into the @path.
+                if (bb == op) {
+                  logPrint("           - bb == op");
+
+                  // Find wich block contains our branch instruction.
+                  for (const auto &fcn_block :
+                       function_dependency_blocks[block_function]) {
+                    for (const auto &node : fcn_block) {
+                      Instruction *node_inst =
+                          cast<Instruction>(node->getValue());
+                      if (node_inst == &I) {
+                        logPrint("           - adding block associated with "
+                                 "the branch instruction to the @path");
+                        path.push_back(fcn_block);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  logPrint("\nPrinting @path:");
+  printPath(path);
+
+  logPrint("\nComputing what dependency blocks we want to keep:");
+  {
+    logPrint("- marking every block from @path as to keep");
+    for (const auto &block : path) {
+      // Mark as visited to make sure we do not process this block in BFS.
+      visited.push_back(block);
+
+      const Instruction *front_inst =
+          cast<Instruction>(block.front()->getValue());
+      function_blocks_to_keep[front_inst->getFunction()].insert(block);
     }
 
+    logPrint("- setting up initial queue for BFS search");
+    // Go over @path and figure out if there are any calls outside the @path.
+    // If there are, put those called blocks for investigation into the @queue.
+    for (const auto &path_block : path) {
+      for (const auto &called_function :
+           blocks_functions_callgraph[path_block]) {
+
+        // Is @called_function part of the path?
+        bool called_function_part_of_path = false;
+
+        for (const auto &b : path) {
+          const Instruction *b_inst = cast<Instruction>(b.front()->getValue());
+          if (b_inst->getFunction() == called_function) {
+            called_function_part_of_path = true;
+            break;
+          }
+        }
+
+        if (false == called_function_part_of_path) {
+          for (auto const &called_function_block :
+               function_dependency_blocks[called_function]) {
+            queue.push_back(called_function_block);
+          }
+        }
+      }
+    }
+
+    logPrint("- running BFS");
+    // Run BFS from queue and add everything for keeping that is not visited.
     while (false == queue.empty()) {
       DependencyBlock current = queue.back();
       queue.pop_back();
@@ -950,30 +1125,52 @@ void APEXPass::removeUnneededStuff(
   std::set<const Function *> functions_to_remove;
   {
     for (const auto &module_function : M.getFunctionList()) {
+      // We do not investigate protected functions (do not want to remove them).
       if (functionIsProtected(&module_function)) {
-        logPrint("- is protected: " + module_function.getGlobalIdentifier());
+        logPrint("- fnc is protected: " +
+                 module_function.getGlobalIdentifier());
         continue;
       }
 
-      // Check if @module_function is stored in the @function_blocks_to_keep.
+      // Check if @module_function has entry in the @function_blocks_to_keep
+      // (that is, there is @module_function with some of its blocks in stored
+      // in the @function_blocks_to_keep).
       if (function_blocks_to_keep.count(&module_function) > 0) {
-        logPrint("- to keep: " + module_function.getGlobalIdentifier());
+        logPrint("- fnc to +++ KEEP +++: " +
+                 module_function.getGlobalIdentifier());
 
+        // Go over all blocks in the @module_function.
         for (auto const &block : function_dependency_blocks[&module_function]) {
-          // Check if @block is stored in the set of DependencyBlocks inside
-          // @function_dependency_blocks.
+          // Check if @block has entry in the
+          // @function_blocks_to_keep[&module_function]
           if (function_blocks_to_keep[&module_function].count(block) > 0) {
             // @block is stored and thus we are going to keep it.
+            logPrint("  - block to +++ KEEP +++");
           } else {
-            blocks_to_remove.insert(block);
-            // logPrint(" - BLOCK DROP:");
-            // for (auto const &node_ptr : block) {
-            //  node_ptr->getValue()->dump();
-            // }
+            // @block is not stored and we should consider to mark it for
+            // removal.
+            bool node_has_branch_inst = false;
+            for (const auto &node : block) {
+              if (isa<BranchInst>(node->getValue())) {
+                node_has_branch_inst = true;
+              }
+            }
+            if (node_has_branch_inst) {
+              // @node has branch instruction, we will not mark this node
+              // for removal just to be safe.
+              logPrint("  - block to +++ KEEP +++: has branch inst");
+            } else {
+              blocks_to_remove.insert(block);
+              logPrint("  - block to remove:");
+            }
+          }
+          for (auto const &node_ptr : block) {
+            logPrintFlat("   ");
+            node_ptr->getValue()->dump();
           }
         }
       } else {
-        logPrint("- to remove: " + module_function.getGlobalIdentifier());
+        logPrint("- fnc to remove: " + module_function.getGlobalIdentifier());
         functions_to_remove.insert(&module_function);
       }
     }

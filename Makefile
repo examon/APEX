@@ -1,5 +1,8 @@
 run:
+	rm -f apex.out
 	./build_and_run.sh
+	@echo "APEX OUTPUT:"
+	@cat apex.out
 
 doc:
 	doxygen Doxyfile

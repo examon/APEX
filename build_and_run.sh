@@ -15,7 +15,7 @@
 INPUT_LIB="c-code/lib.c"
 INPUT_SOURCE="c-code/test_dependencies_minimal.c"
 FILE="c-code/test_dependencies_minimal.c"
-LINE=27
+LINE=13
 #INPUT_SOURCE="c-code/callgraph.c"
 #FILE="c-code/callgraph.c"
 #LINE=11
