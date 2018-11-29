@@ -11,8 +11,8 @@ void _apex_exit(int exit_code) {
 
 /// Function used for dumping value @i to file @APEX_OUTPUT.
 void _apex_extract_int(int i) {
-  // Figure out number of digits @i has.
-  // So we can allocate big enough buffer.
+  // Figure out number of digits @i has,
+  // so we can allocate big enough buffer.
   int i_digits = 0;
   if (i == 0) {
     i_digits = 1;
