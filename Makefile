@@ -1,4 +1,12 @@
-build:
+# Created by Tomas Meszaros (exo at tty dot com, tmeszaro at redhat dot com)
+#
+# Published under Apache 2.0 license.
+# See LICENSE for details.
+
+# Makefile for building APEXPass and generating documentation
+# run: $ make build, to build APEXPass
+
+build: clean
 	cd src; \
 	./build.sh;
 

@@ -4,7 +4,7 @@ int foo(int n) {
 }
 
 int qux(void) {
-	return 42;
+    return 42;
 }
 
 int bar(void) {

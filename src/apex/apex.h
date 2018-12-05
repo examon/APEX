@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include <list>
-#include <map>
-#include <string>
-#include <vector>
+//#include <list>
+//#include <map>
+//#include <string>
+//#include <vector>
 
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DebugInfo.h"
@@ -56,19 +56,9 @@ std::vector<std::string> PROTECTED_FCNS = {
 
     // These belong to the _apex_extract_int function.
     "_apex_extract_int",
-    "abs",
-    "log10",
-    "floor",
-    "fopen",
-    "fputs",
-    "fclose",
-    "exit",
-    "sprintf",
-
-    // Keep printf calls.
     "printf",
 
-    // Introduced with debug symbols.
+    // LLVM stuff
     "llvm.dbg.declare",
     "llvm.stackrestore",
     "llvm.stacksave",

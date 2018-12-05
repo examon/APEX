@@ -1,43 +1,85 @@
 #!/usr/bin/env python3
 
+# Created by Tomas Meszaros (exo at tty dot com, tmeszaro at redhat dot com)
+#
+# Published under Apache 2.0 license.
+# See LICENSE for details.
+
+"""
+python3 apex.py examples/mod1/example_mod1.bc example_mod1.c 11 --export=true
+"""
+
 import argparse
 import shlex
 import subprocess
 import sys
 
-def execute(cmd, print_output=True):
+def execute(cmd, print_output=False):
     try:
         out = subprocess.check_output(cmd, shell=True)
-        print(out.decode("utf-8"))
+        if print_output:
+            print(out.decode("utf-8"))
     except subprocess.CalledProcessError as e:
         sys.stderr.write(str(e) + '\n')
         return None
 
+# Config cmd line args.
 parser = argparse.ArgumentParser()
+parser.add_argument("code", type=str, help="C source code compiled into LLVM bytecode.")
+parser.add_argument("file", type=str, help="Target file name (NOT FULL PATH).")
+parser.add_argument("line", type=int, help="Target line number.")
+parser.add_argument("--export", type=str, help="true/false for exporting call graphs.")
 
-parser.add_argument('--code', type=str, help='input C source code compiled into LLVM bytecode')
-parser.add_argument('--file', type=str, help='file where is the target (NOT FULL PATH)')
-parser.add_argument('--line', type=int, help='target line number in file')
-
-
+# Parse cmd line args.
 args = parser.parse_args()
 code = args.code
 target_file = args.file
 line = args.line
-
-print("code", code)
-print("target_file", target_file)
-print("line", line)
-
+export = args.export
 
 execute("rm -rf build; mkdir build")
-execute("clang -O0 -g -c -emit-llvm src/apex/apexlib.c -o build/bytecode_from_apexlib.bc")
-execute("llvm-link build/bytecode_from_apexlib.bc {INPUT} -S -o=build/linked_ir.ll".format(INPUT=code))
-execute("llvm-as build/linked_ir.ll -o build/bytecode_from_linked_input.bc")
 
+# Compile apexlib to the bytecode.
+execute("clang -O0 -g -c -emit-llvm src/apex/apexlib.c -o build/apexlib.bc")
 
-opt = """opt -o build/bytecode_from_apex.bc -load src/build/apex/libAPEXPass.so -apex -file={FILE} -line={LINE} < build/bytecode_from_linked_input.bc 2> build/apex.out
+# Link @code with apexlib bytecode.
+execute("llvm-link build/apexlib.bc {INPUT} -S -o=build/linked.ll".format(INPUT=code))
+
+# Procedure bytecode from linked input and apexlib.
+execute("llvm-as build/linked.ll -o build/linked.bc")
+
+# Run APEXPass on the linked bytecode we produced above.
+# Save log to the build/apex.log.
+opt = """opt -o build/apex.bc -load src/build/apex/libAPEXPass.so -apex -file={FILE} -line={LINE} < build/linked.bc 2> build/apex.log
       """.format(FILE=target_file, LINE=line)
-print(opt)
 execute(opt)
 
+# Disassembly apexlib and final extracted bytecode for dbg & logging purposes.
+execute("llvm-dis build/apexlib.bc -o build/apexlib.ll")
+execute("llvm-dis build/apex.bc -o build/apex.ll")
+
+# Run final extracted bytecode and save the result to the build/apex.out.
+execute("lli build/apex.bc > build/apex.out")
+execute("cat build/apex.out", print_output=True)
+
+
+# Optional call graphs export
+if export and export == "true":
+    execute("rm -rf build/callgraphs; mkdir build/callgraphs")
+    execute("opt -dot-callgraph {INPUT} > /dev/null".format(INPUT=code))
+    execute("mv callgraph.dot callgraph_no_opt.dot")
+    execute("dot callgraph_no_opt.dot -Tsvg -O")
+    execute("rm -rf callgraph_no_opt.dot")
+    execute("mv callgraph_no_opt.dot.svg build/callgraphs")
+
+    execute("opt -dot-callgraph build/linked.bc > /dev/null")
+    execute("mv callgraph.dot callgraph_linked.dot")
+    execute("dot callgraph_linked.dot -Tsvg -O")
+    execute("rm -rf callgraph_linked.dot")
+    execute("mv callgraph_linked.dot.svg build/callgraphs")
+
+    execute("opt -dot-callgraph build/apex.bc > /dev/null")
+    execute("mv callgraph.dot callgraph_apex.dot")
+    execute("dot callgraph_apex.dot -Tsvg -O")
+    execute("rm -rf callgraph_apex.dot")
+    execute("mv callgraph_apex.dot.svg build/callgraphs")
