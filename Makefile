@@ -15,7 +15,7 @@ doc:
 	doxygen Doxyfile
 
 clean:
-	rm -rf build
+	rm -rf build extracted
 	rm -rf cmake-build-debug
 	rm -rf src/apex.log
 	rm -rf src/apex.out

@@ -19,6 +19,7 @@
 bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("APEXPass START.");
 
+
   if (VERBOSE_DEBUG) {
     logPrintUnderline("Initial module dump.");
     logDumpModule(M);
@@ -29,6 +30,10 @@ bool APEXPass::runOnModule(Module &M) {
 
   logPrintUnderline("Locating target instructions.");
   moduleFindTargetInstructionsOrDie(M, ARG_FILE, ARG_LINE);
+
+  logPrintUnderline("Collecting protected functions.");
+  collectProtectedFunctions(M);
+
 
   logPrintUnderline(
       "Initializing dg. Calculating control and data dependencies.");
@@ -126,11 +131,10 @@ void APEXPass::logDumpModule(const Module &M) {
 // Function utilities
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/// Returns true if function @F is protected.
-/// That is, part of the @PROTECTED_FCNS
+/// Returns true if function @F is protected,
 /// Protected functions will not be removed at the end of the APEXPass.
 bool APEXPass::functionIsProtected(const Function *F) {
-  for (std::string fcn_id : PROTECTED_FCNS) {
+  for (std::string fcn_id : protected_functions_) {
     if (F->getGlobalIdentifier() == fcn_id) {
       return true;
     }
@@ -370,17 +374,30 @@ void APEXPass::apexDgPrintDependenciesCompact() {
 
 /// Take @node and find all data dependencies that form the chain.
 /// Store these dependencies in the @dependencies vector.
-// TODO: Refactor this function. It is copy-paste code atm.
+// TODO: Refactor this function. It is copy-paste code!
 void APEXPass::apexDgFindDataDependencies(
     LLVMNode &node, std::vector<LLVMNode *> &data_dependencies,
     std::vector<LLVMNode *> &rev_data_dependencies) {
   {
+    std::vector<LLVMNode *> visited;
     std::vector<LLVMNode *> queue;
     queue.push_back(&node);
     while (false == queue.empty()) {
       // Pop @curr and investigate it first.
       LLVMNode *curr = queue.back();
       queue.pop_back();
+
+      bool already_visited = false;
+      for (LLVMNode *visited_node : visited) {
+        if (curr == visited_node) {
+          already_visited = true;
+          break;
+        }
+      }
+      if (already_visited) {
+        continue;
+      }
+      visited.push_back(curr);
 
       // Store @curr if it is not already stored.
       bool new_dependency = true;
@@ -406,6 +423,19 @@ void APEXPass::apexDgFindDataDependencies(
       // Pop @curr and investigate it first.
       LLVMNode *curr = queue.back();
       queue.pop_back();
+
+      std::vector<LLVMNode *> visited;
+      bool already_visited = false;
+      for (LLVMNode *visited_node : visited) {
+        if (curr == visited_node) {
+          already_visited = true;
+          break;
+        }
+      }
+      if (already_visited) {
+        continue;
+      }
+      visited.push_back(curr);
 
       // Store @curr if it is not already stored.
       bool new_dependency = true;
@@ -1206,6 +1236,23 @@ void APEXPass::removeUnneededStuff(Module &M) {
 void APEXPass::stripAllDebugSymbols(Module &M) {
   for (auto &F : M) {
     llvm::stripDebugInfo(F);
+  }
+  logPrint("- done");
+}
+
+
+/// Goes over all functions in the module and adds functions
+/// that are only declarations to the @protected_functions_.
+/// We do not want to remove declarations.
+void APEXPass::collectProtectedFunctions(Module &M) {
+  for (const auto &F: M) {
+    if (VERBOSE_DEBUG) {
+      logPrint(F.getGlobalIdentifier());
+    }
+    if (F.isDeclaration()) {
+      logPrintDbg("- is declaration");
+      protected_functions_.push_back(F.getGlobalIdentifier());
+    }
   }
   logPrint("- done");
 }

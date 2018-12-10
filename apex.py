@@ -7,10 +7,15 @@
 
 """
 python3 apex.py examples/mod1/example_mod1.bc example_mod1.c 11 --export=true
+
+output:
+
+    extracted: binary program extracted from the example_mod1.bc
+    build/*: directory full of interesting files, logs, etc.
 """
 
 import argparse
-import shlex
+import os
 import subprocess
 import sys
 
@@ -37,7 +42,7 @@ target_file = args.file
 line = args.line
 export = args.export
 
-execute("rm -rf build; mkdir build")
+execute("rm -rf build extracted; mkdir build")
 
 # Compile apexlib to the bytecode.
 execute("clang -O0 -g -c -emit-llvm src/apex/apexlib.c -o build/apexlib.bc")
@@ -50,18 +55,19 @@ execute("llvm-as build/linked.ll -o build/linked.bc")
 
 # Run APEXPass on the linked bytecode we produced above.
 # Save log to the build/apex.log.
+if not os.path.isfile("src/build/apex/libAPEXPass.so"):
+    print("ERROR: Please first build APEX with: make build")
+    sys.exit(1)
 opt = """opt -o build/apex.bc -load src/build/apex/libAPEXPass.so -apex -file={FILE} -line={LINE} < build/linked.bc 2> build/apex.log
       """.format(FILE=target_file, LINE=line)
 execute(opt)
 
+# Compile apex.bc into executable called "extracted"
+execute("clang -o extracted build/apex.bc")
+
 # Disassembly apexlib and final extracted bytecode for dbg & logging purposes.
 execute("llvm-dis build/apexlib.bc -o build/apexlib.ll")
 execute("llvm-dis build/apex.bc -o build/apex.ll")
-
-# Run final extracted bytecode and save the result to the build/apex.out.
-execute("lli build/apex.bc > build/apex.out")
-execute("cat build/apex.out", print_output=True)
-
 
 # Optional call graphs export
 if export and export == "true":

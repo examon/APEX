@@ -48,22 +48,6 @@ int APEX_DONE = 0;
 /// Function LLVMNodes connected via the data dependencies.
 using DependencyBlock = std::vector<LLVMNode *>;
 
-/// Protected functions IDs. These will not be removed by APEXPass.
-std::vector<std::string> PROTECTED_FCNS = {
-    // These belong to the _apex_exit function.
-    "_apex_exit",
-    "exit",
-
-    // These belong to the _apex_extract_int function.
-    "_apex_extract_int",
-    "printf",
-
-    // LLVM stuff
-    "llvm.dbg.declare",
-    "llvm.stackrestore",
-    "llvm.stacksave",
-};
-
 /// Command line arguments for opt.
 cl::opt<std::string> ARG_FILE(
     "file", cl::desc("Filename in relative path from to the launching script."),
@@ -112,21 +96,21 @@ private:
   // Data members
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  // Source and target functions global IDs.
+  /// Source and target functions global IDs.
   std::string source_function_id_ = "main";
   std::string target_function_id_ = ""; // Will be properly initialized later.
-  // Target instructions that correspond to the user input.
+  /// Target instructions that correspond to the user input.
   std::vector<const Instruction *> target_instructions_;
 
-  // Dependence graph: https://github.com/mchalupa/dg
+  /// Dependence graph: https://github.com/mchalupa/dg
   LLVMDependenceGraph dg_;
 
-  // Holds all the necessary info about dependencies.
+  /// Holds all the necessary info about dependencies.
   APEXDependencyGraph apex_dg_;
 
-  // @path_ is the representation of computed execution path.
-  // It holds pair of function and dependency block from function through which
-  // is the execution "flowing".
+  /// @path_ is the representation of computed execution path.
+  /// It holds pair of function and dependency block from function through which
+  /// is the execution "flowing".
   std::vector<DependencyBlock> path_;
 
   std::map<const Function *, std::vector<DependencyBlock>>
@@ -135,7 +119,18 @@ private:
   std::map<DependencyBlock, std::vector<const Function *>>
       blocks_functions_callgraph_;
 
-  // Member Functions
+    /// Protected functions IDs. These will not be removed by APEXPass.
+    std::vector<std::string> protected_functions_ = {
+            // apexlib functions
+            "_apex_exit",
+            "_apex_extract_int",
+
+            // LLVM stuff
+            "llvm.stackrestore",
+            "llvm.stacksave",
+    };
+
+  // Methods
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // Logging utilities.
@@ -177,6 +172,7 @@ private:
   void moduleInjectExitExtract(Module &M);
   void removeUnneededStuff(Module &M);
   void stripAllDebugSymbols(Module &M);
+    void collectProtectedFunctions(Module &M);
 };
 
 /// Registering our own pass, so it can be ran via opt.
