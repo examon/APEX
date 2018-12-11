@@ -44,7 +44,7 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 
-<p>Graph: consists of nodes that are functions.  
+<p>Graph: Consists of nodes that are functions.  
  <a href="structAPEXDependencyGraph.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="apex_8h_source.html">apex.h</a>&gt;</code></p>
@@ -57,14 +57,23 @@ std::vector&lt; <a class="el" href="structAPEXDependencyFunction.html">APEXDepen
 <tr class="memitem:af6237ef27a89f712d5fe205f9052c31f"><td class="memItemLeft" align="right" valign="top"><a id="af6237ef27a89f712d5fe205f9052c31f"></a>
 std::map&lt; LLVMNode *, std::vector&lt; LLVMNode * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>node_data_dependencies_map</b></td></tr>
 <tr class="separator:af6237ef27a89f712d5fe205f9052c31f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a77fa5ad74c62356a492bf9ca34ab50df"><td class="memItemLeft" align="right" valign="top"><a id="a77fa5ad74c62356a492bf9ca34ab50df"></a>
+std::map&lt; LLVMNode *, std::vector&lt; LLVMNode * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>node_rev_data_dependencies_map</b></td></tr>
+<tr class="separator:a77fa5ad74c62356a492bf9ca34ab50df"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa39f9def7be8d9445ad9cc79ac71e3f"><td class="memItemLeft" align="right" valign="top"><a id="aaa39f9def7be8d9445ad9cc79ac71e3f"></a>
+std::map&lt; LLVMNode *, std::vector&lt; LLVMNode * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>node_control_dependencies_map</b></td></tr>
+<tr class="separator:aaa39f9def7be8d9445ad9cc79ac71e3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4af93331f57e72ec825de47c860d2414"><td class="memItemLeft" align="right" valign="top"><a id="a4af93331f57e72ec825de47c860d2414"></a>
+std::map&lt; LLVMNode *, std::vector&lt; LLVMNode * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>node_rev_control_dependencies_map</b></td></tr>
+<tr class="separator:a4af93331f57e72ec825de47c860d2414"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a582babaf3ee3b4c17c347d1c2917515d"><td class="memItemLeft" align="right" valign="top"><a id="a582babaf3ee3b4c17c347d1c2917515d"></a>
 std::map&lt; LLVMNode *, <a class="el" href="structAPEXDependencyFunction.html">APEXDependencyFunction</a> * &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>node_function_map</b></td></tr>
 <tr class="separator:a582babaf3ee3b4c17c347d1c2917515d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Graph: consists of nodes that are functions. </p>
+<div class="textblock"><p>Graph: Consists of nodes that are functions. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00048">48</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00077">77</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li><a class="el" href="apex_8h_source.html">apex.h</a></li>
 </ul>

@@ -40,7 +40,8 @@ $(function() {
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-static-attribs">Static Public Attributes</a> &#124;
-<a href="#pri-methods">Private Member Functions</a>  </div>
+<a href="#pri-methods">Private Member Functions</a> &#124;
+<a href="#pri-attribs">Private Attributes</a>  </div>
   <div class="headertitle">
 <div class="title">APEXPass Class Reference</div>  </div>
 </div><!--header-->
@@ -79,6 +80,10 @@ Private Member Functions</h2></td></tr>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a8a597daae8f501ccf5dbf9bb2a147a09">logPrint</a> (const std::string &amp;message)</td></tr>
 <tr class="memdesc:a8a597daae8f501ccf5dbf9bb2a147a09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Simple logging print with newline. <br /></td></tr>
 <tr class="separator:a8a597daae8f501ccf5dbf9bb2a147a09"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f50b615e49dbcb5e8b8f20dd3d640b9"><td class="memItemLeft" align="right" valign="top"><a id="a5f50b615e49dbcb5e8b8f20dd3d640b9"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a5f50b615e49dbcb5e8b8f20dd3d640b9">logPrintDbg</a> (const std::string &amp;message)</td></tr>
+<tr class="memdesc:a5f50b615e49dbcb5e8b8f20dd3d640b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Simple logging print with newline. <br /></td></tr>
+<tr class="separator:a5f50b615e49dbcb5e8b8f20dd3d640b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6d149e003989eee09bf7b13db230434e"><td class="memItemLeft" align="right" valign="top"><a id="a6d149e003989eee09bf7b13db230434e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a6d149e003989eee09bf7b13db230434e">logPrintUnderline</a> (const std::string &amp;message)</td></tr>
 <tr class="memdesc:a6d149e003989eee09bf7b13db230434e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Simple logging print with newline. <br /></td></tr>
@@ -91,67 +96,228 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#abc646851a9b4be4892d03a8f5226ff24">logDumpModule</a> (const Module &amp;M)</td></tr>
 <tr class="memdesc:abc646851a9b4be4892d03a8f5226ff24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dumps whole module M. <br /></td></tr>
 <tr class="separator:abc646851a9b4be4892d03a8f5226ff24"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9712ed455068d007517c3a68d4e3a72c"><td class="memItemLeft" align="right" valign="top"><a id="a9712ed455068d007517c3a68d4e3a72c"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a9712ed455068d007517c3a68d4e3a72c">functionVectorFlatPrint</a> (const std::vector&lt; Function *&gt; &amp;functions)</td></tr>
-<tr class="memdesc:a9712ed455068d007517c3a68d4e3a72c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints contents of the vector functions. <br /></td></tr>
-<tr class="separator:a9712ed455068d007517c3a68d4e3a72c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a72ee6e0fba1702e36a302526482d6873"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a72ee6e0fba1702e36a302526482d6873">functionRemoveCalls</a> (const Function *F)</td></tr>
-<tr class="memdesc:a72ee6e0fba1702e36a302526482d6873"><td class="mdescLeft">&#160;</td><td class="mdescRight">Takes pointer to function F, iterates over instructions calling this function and removes these instructions.  <a href="#a72ee6e0fba1702e36a302526482d6873">More...</a><br /></td></tr>
-<tr class="separator:a72ee6e0fba1702e36a302526482d6873"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa31ca4e0ca4bcc00e6352e01b59a320d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aa31ca4e0ca4bcc00e6352e01b59a320d">functionRemove</a> (Function *F)</td></tr>
-<tr class="memdesc:aa31ca4e0ca4bcc00e6352e01b59a320d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Takes pointer to a function F, removes all calls to this function and then removes function F itself.  <a href="#aa31ca4e0ca4bcc00e6352e01b59a320d">More...</a><br /></td></tr>
-<tr class="separator:aa31ca4e0ca4bcc00e6352e01b59a320d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1258c9dd01922617edb48fe5802054ec"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a1258c9dd01922617edb48fe5802054ec">functionGetCallers</a> (const Function *F, std::vector&lt; Function *&gt; &amp;callers)</td></tr>
-<tr class="memdesc:a1258c9dd01922617edb48fe5802054ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collects functions that call function F into vector callers.  <a href="#a1258c9dd01922617edb48fe5802054ec">More...</a><br /></td></tr>
-<tr class="separator:a1258c9dd01922617edb48fe5802054ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4646fbbafab88e38c3377ce1cb225754"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a4646fbbafab88e38c3377ce1cb225754">functionGetCallees</a> (const Function *F, std::vector&lt; Function *&gt; &amp;callees)</td></tr>
-<tr class="memdesc:a4646fbbafab88e38c3377ce1cb225754"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collects functions that are called by function F into vector callees.  <a href="#a4646fbbafab88e38c3377ce1cb225754">More...</a><br /></td></tr>
-<tr class="separator:a4646fbbafab88e38c3377ce1cb225754"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a536d4af65c6c2af9797a9a871dd94ddd"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a536d4af65c6c2af9797a9a871dd94ddd">createCallGraph</a> (const Module &amp;M, const std::string &amp;root, std::vector&lt; std::pair&lt; Function *, std::vector&lt; Function *&gt;&gt;&gt; &amp;callgraph)</td></tr>
-<tr class="memdesc:a536d4af65c6c2af9797a9a871dd94ddd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates callgraph from module M, starting from the function with global id specified in root.  <a href="#a536d4af65c6c2af9797a9a871dd94ddd">More...</a><br /></td></tr>
-<tr class="separator:a536d4af65c6c2af9797a9a871dd94ddd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9022380512661408b24f1351a0e72a65"><td class="memItemLeft" align="right" valign="top"><a id="a9022380512661408b24f1351a0e72a65"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a9022380512661408b24f1351a0e72a65">printCallGraph</a> (const std::vector&lt; std::pair&lt; Function *, std::vector&lt; Function *&gt;&gt;&gt; &amp;callgraph)</td></tr>
-<tr class="memdesc:a9022380512661408b24f1351a0e72a65"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints callgraph. <br /></td></tr>
-<tr class="separator:a9022380512661408b24f1351a0e72a65"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4dd57cccc5d28bcb6c399dbbf0b154d2"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a4dd57cccc5d28bcb6c399dbbf0b154d2">findPath</a> (const std::vector&lt; std::pair&lt; Function *, std::vector&lt; Function *&gt;&gt;&gt; &amp;callgraph, const std::string &amp;source, const std::string &amp;target, std::vector&lt; Function *&gt; &amp;final_path)</td></tr>
-<tr class="memdesc:a4dd57cccc5d28bcb6c399dbbf0b154d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Uses BFS to find path in callgraph from source to target (both are global Function IDs).  <a href="#a4dd57cccc5d28bcb6c399dbbf0b154d2">More...</a><br /></td></tr>
-<tr class="separator:a4dd57cccc5d28bcb6c399dbbf0b154d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aecb2f67cbbfc8622aaf1e7b4b141995d"><td class="memItemLeft" align="right" valign="top"><a id="aecb2f67cbbfc8622aaf1e7b4b141995d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aecb2f67cbbfc8622aaf1e7b4b141995d">printPath</a> (const std::vector&lt; Function *&gt; &amp;path, const std::string &amp;source, const std::string &amp;target)</td></tr>
-<tr class="memdesc:aecb2f67cbbfc8622aaf1e7b4b141995d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints path. <br /></td></tr>
-<tr class="separator:aecb2f67cbbfc8622aaf1e7b4b141995d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a960948a62a5a07ac11caaaf3de4ceb77"><td class="memItemLeft" align="right" valign="top"><a id="a960948a62a5a07ac11caaaf3de4ceb77"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a960948a62a5a07ac11caaaf3de4ceb77">dgInit</a> (Module &amp;M, LLVMDependenceGraph &amp;dg)</td></tr>
-<tr class="memdesc:a960948a62a5a07ac11caaaf3de4ceb77"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes dg and calculates control &amp; data dependencies. <br /></td></tr>
-<tr class="separator:a960948a62a5a07ac11caaaf3de4ceb77"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af2ba08d10f4e4d1c387ac4741d876467"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#af2ba08d10f4e4d1c387ac4741d876467">apexDgInit</a> (<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg)</td></tr>
-<tr class="memdesc:af2ba08d10f4e4d1c387ac4741d876467"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts data from dg and stores them into apex_dg structure.  <a href="#af2ba08d10f4e4d1c387ac4741d876467">More...</a><br /></td></tr>
-<tr class="separator:af2ba08d10f4e4d1c387ac4741d876467"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a508efe7541a8f8dbf57b6865a7ad1a17"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a508efe7541a8f8dbf57b6865a7ad1a17">functionIsProtected</a> (const Function *F)</td></tr>
+<tr class="memdesc:a508efe7541a8f8dbf57b6865a7ad1a17"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true if function  is protected, Protected functions will not be removed at the end of the <a class="el" href="classAPEXPass.html" title="Actual APEX pass. ">APEXPass</a>.  <a href="#a508efe7541a8f8dbf57b6865a7ad1a17">More...</a><br /></td></tr>
+<tr class="separator:a508efe7541a8f8dbf57b6865a7ad1a17"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adadf924ff582e98054b5f8bacc20ffd0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#adadf924ff582e98054b5f8bacc20ffd0">findPath</a> (const Module &amp;M)</td></tr>
+<tr class="memdesc:adadf924ff582e98054b5f8bacc20ffd0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finds blocks in the source function and starts exploring  from these blocks using BFS.  <a href="#adadf924ff582e98054b5f8bacc20ffd0">More...</a><br /></td></tr>
+<tr class="separator:adadf924ff582e98054b5f8bacc20ffd0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4729220693bb1fc1147c3ee2aecdcec5"><td class="memItemLeft" align="right" valign="top"><a id="a4729220693bb1fc1147c3ee2aecdcec5"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a4729220693bb1fc1147c3ee2aecdcec5">printPath</a> ()</td></tr>
+<tr class="memdesc:a4729220693bb1fc1147c3ee2aecdcec5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints path in the . <br /></td></tr>
+<tr class="separator:a4729220693bb1fc1147c3ee2aecdcec5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a32a6ace75208782c05da70a150a5b8ef"><td class="memItemLeft" align="right" valign="top"><a id="a32a6ace75208782c05da70a150a5b8ef"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a32a6ace75208782c05da70a150a5b8ef">dgInit</a> (Module &amp;M)</td></tr>
+<tr class="memdesc:a32a6ace75208782c05da70a150a5b8ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes dg and calculates control &amp; data dependencies. <br /></td></tr>
+<tr class="separator:a32a6ace75208782c05da70a150a5b8ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afec9028f385d3580efd3bce2c0bc2527"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#afec9028f385d3580efd3bce2c0bc2527">apexDgInit</a> ()</td></tr>
+<tr class="memdesc:afec9028f385d3580efd3bce2c0bc2527"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts data from  and stores them into  structures.  <a href="#afec9028f385d3580efd3bce2c0bc2527">More...</a><br /></td></tr>
+<tr class="separator:afec9028f385d3580efd3bce2c0bc2527"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a792707395fe9ebea89abcfcf8bd00067"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a792707395fe9ebea89abcfcf8bd00067">apexDgGetBlockNodeInfo</a> (<a class="el" href="structAPEXDependencyNode.html">APEXDependencyNode</a> &amp;apex_node, LLVMNode *node)</td></tr>
-<tr class="memdesc:a792707395fe9ebea89abcfcf8bd00067"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores control/reverse_control/data/reverse_data dependencies of the node to the apex_node.  <a href="#a792707395fe9ebea89abcfcf8bd00067">More...</a><br /></td></tr>
+<tr class="memdesc:a792707395fe9ebea89abcfcf8bd00067"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores control/reverse_control/data/reverse_data dependencies of the  to the .  <a href="#a792707395fe9ebea89abcfcf8bd00067">More...</a><br /></td></tr>
 <tr class="separator:a792707395fe9ebea89abcfcf8bd00067"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a643d4916f69e20006c14396bec4b16fe"><td class="memItemLeft" align="right" valign="top"><a id="a643d4916f69e20006c14396bec4b16fe"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a643d4916f69e20006c14396bec4b16fe">apexDgPrint</a> (<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg, bool verbose)</td></tr>
-<tr class="memdesc:a643d4916f69e20006c14396bec4b16fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty prints <a class="el" href="structAPEXDependencyGraph.html" title="Graph: consists of nodes that are functions. ">APEXDependencyGraph</a> structure. <br /></td></tr>
-<tr class="separator:a643d4916f69e20006c14396bec4b16fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad6dfc083ac1a01b0224af4ae6b69163e"><td class="memItemLeft" align="right" valign="top"><a id="ad6dfc083ac1a01b0224af4ae6b69163e"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#ad6dfc083ac1a01b0224af4ae6b69163e">apexDgPrintDataDependenciesCompact</a> (<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg)</td></tr>
-<tr class="memdesc:ad6dfc083ac1a01b0224af4ae6b69163e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty prints apex_dg, but only with data dependencies. <br /></td></tr>
-<tr class="separator:ad6dfc083ac1a01b0224af4ae6b69163e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acb88e55dc8b0a8601bed3e1f5cf1f61c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#acb88e55dc8b0a8601bed3e1f5cf1f61c">apexDgMakeGraph</a> (<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg)</td></tr>
-<tr class="memdesc:acb88e55dc8b0a8601bed3e1f5cf1f61c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Takes apex_dg, makes graph out of data dependencies between nodes and stores this graph into apex_dg.graph variable.  <a href="#acb88e55dc8b0a8601bed3e1f5cf1f61c">More...</a><br /></td></tr>
-<tr class="separator:acb88e55dc8b0a8601bed3e1f5cf1f61c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6846335175b30ceff2d5aeaac59eeac8"><td class="memItemLeft" align="right" valign="top"><a id="a6846335175b30ceff2d5aeaac59eeac8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a6846335175b30ceff2d5aeaac59eeac8">apexDgPrintGraph</a> (<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg)</td></tr>
-<tr class="memdesc:a6846335175b30ceff2d5aeaac59eeac8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints node_data_dependencies_map from the apex_dg structure. <br /></td></tr>
-<tr class="separator:a6846335175b30ceff2d5aeaac59eeac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab226cb9d228c10bca250368f913ce33d"><td class="memItemLeft" align="right" valign="top"><a id="ab226cb9d228c10bca250368f913ce33d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#ab226cb9d228c10bca250368f913ce33d">apexDgPrintDependenciesCompact</a> ()</td></tr>
+<tr class="memdesc:ab226cb9d228c10bca250368f913ce33d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty prints , but only with data dependencies. <br /></td></tr>
+<tr class="separator:ab226cb9d228c10bca250368f913ce33d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa49845a4016bcb1a079ea79815715edf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aa49845a4016bcb1a079ea79815715edf">apexDgFindDataDependencies</a> (LLVMNode &amp;node, std::vector&lt; LLVMNode *&gt; &amp;dependencies, std::vector&lt; LLVMNode *&gt; &amp;rev_data_dependencies)</td></tr>
+<tr class="memdesc:aa49845a4016bcb1a079ea79815715edf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Take  and find all data dependencies that form the chain.  <a href="#aa49845a4016bcb1a079ea79815715edf">More...</a><br /></td></tr>
+<tr class="separator:aa49845a4016bcb1a079ea79815715edf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acdb6b79332d0976b549c07fdaa5da0f3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#acdb6b79332d0976b549c07fdaa5da0f3">apexDgGetNodeOrDie</a> (const <a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;apex_dg, const Instruction *const I, <a class="el" href="structAPEXDependencyNode.html">APEXDependencyNode</a> &amp;node)</td></tr>
+<tr class="memdesc:acdb6b79332d0976b549c07fdaa5da0f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finds instruction  in the .  <a href="#acdb6b79332d0976b549c07fdaa5da0f3">More...</a><br /></td></tr>
+<tr class="separator:acdb6b79332d0976b549c07fdaa5da0f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4702786510d58a235985a6d163a1c29f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a4702786510d58a235985a6d163a1c29f">apexDgComputeFunctionDependencyBlocks</a> (const Module &amp;M)</td></tr>
+<tr class="memdesc:a4702786510d58a235985a6d163a1c29f"><td class="mdescLeft">&#160;</td><td class="mdescRight">We go over functions that are in  and compute for each function dependencies between instructions.  <a href="#a4702786510d58a235985a6d163a1c29f">More...</a><br /></td></tr>
+<tr class="separator:a4702786510d58a235985a6d163a1c29f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1eae6d57ebad8fb329c36d2d65216dc1"><td class="memItemLeft" align="right" valign="top"><a id="a1eae6d57ebad8fb329c36d2d65216dc1"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a1eae6d57ebad8fb329c36d2d65216dc1">apexDgPrintFunctionDependencyBlocks</a> ()</td></tr>
+<tr class="memdesc:a1eae6d57ebad8fb329c36d2d65216dc1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty prints  map. <br /></td></tr>
+<tr class="separator:a1eae6d57ebad8fb329c36d2d65216dc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f1bd6aaf487afaf1c3055365ce4716b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a0f1bd6aaf487afaf1c3055365ce4716b">apexDgConstructBlocksFunctionsCallgraph</a> ()</td></tr>
+<tr class="memdesc:a0f1bd6aaf487afaf1c3055365ce4716b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Takes  that were computed by () and constructs callgraph where key is some block and value is vector of functions that this block may call.  <a href="#a0f1bd6aaf487afaf1c3055365ce4716b">More...</a><br /></td></tr>
+<tr class="separator:a0f1bd6aaf487afaf1c3055365ce4716b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaca3b90be28efa51afdb2cb8d6ca280f"><td class="memItemLeft" align="right" valign="top"><a id="aaca3b90be28efa51afdb2cb8d6ca280f"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aaca3b90be28efa51afdb2cb8d6ca280f">apexDgPrintBlocksFunctionsCallgraph</a> ()</td></tr>
+<tr class="memdesc:aaca3b90be28efa51afdb2cb8d6ca280f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pretty prints dependency blocks to functions callgraph. <br /></td></tr>
+<tr class="separator:aaca3b90be28efa51afdb2cb8d6ca280f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aab79bc7cf7400bd067053a203ede05e3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aab79bc7cf7400bd067053a203ede05e3">moduleParseCmdLineArgsOrDie</a> ()</td></tr>
+<tr class="memdesc:aab79bc7cf7400bd067053a203ede05e3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses command line arguments from opt.  <a href="#aab79bc7cf7400bd067053a203ede05e3">More...</a><br /></td></tr>
+<tr class="separator:aab79bc7cf7400bd067053a203ede05e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4b218195ffb1a3c0b558cd46d6695808"><td class="memItemLeft" align="right" valign="top"><a id="a4b218195ffb1a3c0b558cd46d6695808"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>moduleFindTargetInstructionsOrDie</b> (Module &amp;M, const std::string &amp;file, const std::string &amp;line)</td></tr>
+<tr class="separator:a4b218195ffb1a3c0b558cd46d6695808"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a17cc8e36dc7b7414137b9c3758a5a504"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a17cc8e36dc7b7414137b9c3758a5a504">moduleInjectExitExtract</a> (Module &amp;M)</td></tr>
+<tr class="memdesc:a17cc8e36dc7b7414137b9c3758a5a504"><td class="mdescLeft">&#160;</td><td class="mdescRight">Injects _apex_exit() call at the end of the .  <a href="#a17cc8e36dc7b7414137b9c3758a5a504">More...</a><br /></td></tr>
+<tr class="separator:a17cc8e36dc7b7414137b9c3758a5a504"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa56a592d78e427365a2c65531a1051e"><td class="memItemLeft" align="right" valign="top"><a id="aaa56a592d78e427365a2c65531a1051e"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aaa56a592d78e427365a2c65531a1051e">removeUnneededStuff</a> (Module &amp;M)</td></tr>
+<tr class="memdesc:aaa56a592d78e427365a2c65531a1051e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Figures out what DependencyBlocks and functions to remove and removes them. <br /></td></tr>
+<tr class="separator:aaa56a592d78e427365a2c65531a1051e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a25a0a2ce34252636d035a05954091b4c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a25a0a2ce34252636d035a05954091b4c">stripAllDebugSymbols</a> (Module &amp;M)</td></tr>
+<tr class="memdesc:a25a0a2ce34252636d035a05954091b4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Strips debug symbols from every function in module .  <a href="#a25a0a2ce34252636d035a05954091b4c">More...</a><br /></td></tr>
+<tr class="separator:a25a0a2ce34252636d035a05954091b4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a735fcad018299b1fb9dca78e7e8ef8ef"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a735fcad018299b1fb9dca78e7e8ef8ef">collectProtectedFunctions</a> (Module &amp;M)</td></tr>
+<tr class="memdesc:a735fcad018299b1fb9dca78e7e8ef8ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Goes over all functions in the module and adds functions that are only declarations to the .  <a href="#a735fcad018299b1fb9dca78e7e8ef8ef">More...</a><br /></td></tr>
+<tr class="separator:a735fcad018299b1fb9dca78e7e8ef8ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
+Private Attributes</h2></td></tr>
+<tr class="memitem:a671e99ae53150f29a5981944a395fdd4"><td class="memItemLeft" align="right" valign="top"><a id="a671e99ae53150f29a5981944a395fdd4"></a>
+std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a671e99ae53150f29a5981944a395fdd4">source_function_id_</a> = &quot;main&quot;</td></tr>
+<tr class="memdesc:a671e99ae53150f29a5981944a395fdd4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Source and target functions global IDs. <br /></td></tr>
+<tr class="separator:a671e99ae53150f29a5981944a395fdd4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aac799eca1079c5de1aaad0698857fcea"><td class="memItemLeft" align="right" valign="top"><a id="aac799eca1079c5de1aaad0698857fcea"></a>
+std::string&#160;</td><td class="memItemRight" valign="bottom"><b>target_function_id_</b> = &quot;&quot;</td></tr>
+<tr class="separator:aac799eca1079c5de1aaad0698857fcea"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a49a6f452ab8b7d710796f25a669e2030"><td class="memItemLeft" align="right" valign="top"><a id="a49a6f452ab8b7d710796f25a669e2030"></a>
+std::vector&lt; const Instruction * &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a49a6f452ab8b7d710796f25a669e2030">target_instructions_</a></td></tr>
+<tr class="memdesc:a49a6f452ab8b7d710796f25a669e2030"><td class="mdescLeft">&#160;</td><td class="mdescRight">Target instructions that correspond to the user input. <br /></td></tr>
+<tr class="separator:a49a6f452ab8b7d710796f25a669e2030"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a30a9c93137ed665c0cbf912abe4b2061"><td class="memItemLeft" align="right" valign="top"><a id="a30a9c93137ed665c0cbf912abe4b2061"></a>
+LLVMDependenceGraph&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a30a9c93137ed665c0cbf912abe4b2061">dg_</a></td></tr>
+<tr class="memdesc:a30a9c93137ed665c0cbf912abe4b2061"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dependence graph: <a href="https://github.com/mchalupa/dg">https://github.com/mchalupa/dg</a>. <br /></td></tr>
+<tr class="separator:a30a9c93137ed665c0cbf912abe4b2061"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9141a8fcfa6d0321e93c639baba541c3"><td class="memItemLeft" align="right" valign="top"><a id="a9141a8fcfa6d0321e93c639baba541c3"></a>
+<a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a9141a8fcfa6d0321e93c639baba541c3">apex_dg_</a></td></tr>
+<tr class="memdesc:a9141a8fcfa6d0321e93c639baba541c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Holds all the necessary info about dependencies. <br /></td></tr>
+<tr class="separator:a9141a8fcfa6d0321e93c639baba541c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa6e98e6236c6842e4c367402724cbb80"><td class="memItemLeft" align="right" valign="top">std::vector&lt; DependencyBlock &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#aa6e98e6236c6842e4c367402724cbb80">path_</a></td></tr>
+<tr class="memdesc:aa6e98e6236c6842e4c367402724cbb80"><td class="mdescLeft">&#160;</td><td class="mdescRight">is the representation of computed execution path.  <a href="#aa6e98e6236c6842e4c367402724cbb80">More...</a><br /></td></tr>
+<tr class="separator:aa6e98e6236c6842e4c367402724cbb80"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3a84719e2a35e160a9a76caae031ecac"><td class="memItemLeft" align="right" valign="top"><a id="a3a84719e2a35e160a9a76caae031ecac"></a>
+std::map&lt; const Function *, std::vector&lt; DependencyBlock &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>function_dependency_blocks_</b></td></tr>
+<tr class="separator:a3a84719e2a35e160a9a76caae031ecac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abee9578151b289c74a033c2ef2ada4ed"><td class="memItemLeft" align="right" valign="top"><a id="abee9578151b289c74a033c2ef2ada4ed"></a>
+std::map&lt; DependencyBlock, std::vector&lt; const Function * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>blocks_functions_callgraph_</b></td></tr>
+<tr class="separator:abee9578151b289c74a033c2ef2ada4ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8967d5e37e53232eb3eefcb81c04a9c6"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classAPEXPass.html#a8967d5e37e53232eb3eefcb81c04a9c6">protected_functions_</a></td></tr>
+<tr class="memdesc:a8967d5e37e53232eb3eefcb81c04a9c6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Protected functions IDs. These will not be removed by <a class="el" href="classAPEXPass.html" title="Actual APEX pass. ">APEXPass</a>.  <a href="#a8967d5e37e53232eb3eefcb81c04a9c6">More...</a><br /></td></tr>
+<tr class="separator:a8967d5e37e53232eb3eefcb81c04a9c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Actual APEX pass. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00056">56</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00089">89</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a4702786510d58a235985a6d163a1c29f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4702786510d58a235985a6d163a1c29f">&#9670;&nbsp;</a></span>apexDgComputeFunctionDependencyBlocks()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::apexDgComputeFunctionDependencyBlocks </td>
+          <td>(</td>
+          <td class="paramtype">const Module &amp;&#160;</td>
+          <td class="paramname"><em>M</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>We go over functions that are in  and compute for each function dependencies between instructions. </p>
+<p>Instructions that are linked via data dependencies are stored in the  map. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00485">485</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8h_source.html#l00109">apex_dg_</a>, <a class="el" href="apex_8cpp_source.html#l00377">apexDgFindDataDependencies()</a>, <a class="el" href="apex_8cpp_source.html#l00463">apexDgGetNodeOrDie()</a>, <a class="el" href="apex_8cpp_source.html#l00135">functionIsProtected()</a>, <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00103">logPrintDbg()</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
+
+</div>
+</div>
+<a id="a0f1bd6aaf487afaf1c3055365ce4716b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0f1bd6aaf487afaf1c3055365ce4716b">&#9670;&nbsp;</a></span>apexDgConstructBlocksFunctionsCallgraph()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::apexDgConstructBlocksFunctionsCallgraph </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Takes  that were computed by () and constructs callgraph where key is some block and value is vector of functions that this block may call. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00673">673</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
+
+</div>
+</div>
+<a id="aa49845a4016bcb1a079ea79815715edf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa49845a4016bcb1a079ea79815715edf">&#9670;&nbsp;</a></span>apexDgFindDataDependencies()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::apexDgFindDataDependencies </td>
+          <td>(</td>
+          <td class="paramtype">LLVMNode &amp;&#160;</td>
+          <td class="paramname"><em>node</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; LLVMNode *&gt; &amp;&#160;</td>
+          <td class="paramname"><em>data_dependencies</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; LLVMNode *&gt; &amp;&#160;</td>
+          <td class="paramname"><em>rev_data_dependencies</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Take  and find all data dependencies that form the chain. </p>
+<p>Store these dependencies in the  vector. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00377">377</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8h_source.html#l00109">apex_dg_</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00485">apexDgComputeFunctionDependencyBlocks()</a>.</p>
+
+</div>
+</div>
 <a id="a792707395fe9ebea89abcfcf8bd00067"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a792707395fe9ebea89abcfcf8bd00067">&#9670;&nbsp;</a></span>apexDgGetBlockNodeInfo()</h2>
 
@@ -186,16 +352,68 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Stores control/reverse_control/data/reverse_data dependencies of the node to the apex_node. </p>
+<p>Stores control/reverse_control/data/reverse_data dependencies of the  to the . </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00512">512</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00330">330</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00461">apexDgInit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00278">apexDgInit()</a>.</p>
 
 </div>
 </div>
-<a id="af2ba08d10f4e4d1c387ac4741d876467"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af2ba08d10f4e4d1c387ac4741d876467">&#9670;&nbsp;</a></span>apexDgInit()</h2>
+<a id="acdb6b79332d0976b549c07fdaa5da0f3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acdb6b79332d0976b549c07fdaa5da0f3">&#9670;&nbsp;</a></span>apexDgGetNodeOrDie()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::apexDgGetNodeOrDie </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;&#160;</td>
+          <td class="paramname"><em>apex_dg</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const Instruction *const&#160;</td>
+          <td class="paramname"><em>I</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structAPEXDependencyNode.html">APEXDependencyNode</a> &amp;&#160;</td>
+          <td class="paramname"><em>node</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Finds instruction  in the . </p>
+<p>Returns , that is  equivalent in the .</p>
+<p>Dies if unable to find  in the . </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00463">463</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00122">logPrintFlat()</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00485">apexDgComputeFunctionDependencyBlocks()</a>.</p>
+
+</div>
+</div>
+<a id="afec9028f385d3580efd3bce2c0bc2527"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afec9028f385d3580efd3bce2c0bc2527">&#9670;&nbsp;</a></span>apexDgInit()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -206,8 +424,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
         <tr>
           <td class="memname">void APEXPass::apexDgInit </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;&#160;</td>
-          <td class="paramname"><em>apex_dg</em></td><td>)</td>
+          <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -218,19 +435,19 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Extracts data from dg and stores them into apex_dg structure. </p>
-<p>Caution: <a class="el" href="classAPEXPass.html#a960948a62a5a07ac11caaaf3de4ceb77" title="Initializes dg and calculates control &amp; data dependencies. ">dgInit()</a> has to be called before <a class="el" href="classAPEXPass.html#af2ba08d10f4e4d1c387ac4741d876467" title="Extracts data from dg and stores them into apex_dg structure. ">apexDgInit()</a>, dg needs to be initialized in for this to properly work -&gt; CF map will be empty </p>
+<p>Extracts data from  and stores them into  structures. </p>
+<p>Caution: () has to be called before (), dg needs to be initialized in for this to properly work, otherwise CF map will be empty. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00461">461</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00278">278</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00512">apexDgGetBlockNodeInfo()</a>, <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8h_source.html#l00109">apex_dg_</a>, <a class="el" href="apex_8cpp_source.html#l00330">apexDgGetBlockNodeInfo()</a>, and <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
 
 </div>
 </div>
-<a id="acb88e55dc8b0a8601bed3e1f5cf1f61c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acb88e55dc8b0a8601bed3e1f5cf1f61c">&#9670;&nbsp;</a></span>apexDgMakeGraph()</h2>
+<a id="a735fcad018299b1fb9dca78e7e8ef8ef"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a735fcad018299b1fb9dca78e7e8ef8ef">&#9670;&nbsp;</a></span>collectProtectedFunctions()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -239,10 +456,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void APEXPass::apexDgMakeGraph </td>
+          <td class="memname">void APEXPass::collectProtectedFunctions </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structAPEXDependencyGraph.html">APEXDependencyGraph</a> &amp;&#160;</td>
-          <td class="paramname"><em>apex_dg</em></td><td>)</td>
+          <td class="paramtype">Module &amp;&#160;</td>
+          <td class="paramname"><em>M</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -253,18 +470,19 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Takes apex_dg, makes graph out of data dependencies between nodes and stores this graph into apex_dg.graph variable. </p>
+<p>Goes over all functions in the module and adds functions that are only declarations to the . </p>
+<p>We do not want to remove declarations. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00633">633</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l01246">1246</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>, <a class="el" href="apex_8cpp_source.html#l00103">logPrintDbg()</a>, and <a class="el" href="apex_8h_source.html#l00123">protected_functions_</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
 
 </div>
 </div>
-<a id="a536d4af65c6c2af9797a9a871dd94ddd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a536d4af65c6c2af9797a9a871dd94ddd">&#9670;&nbsp;</a></span>createCallGraph()</h2>
+<a id="adadf924ff582e98054b5f8bacc20ffd0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adadf924ff582e98054b5f8bacc20ffd0">&#9670;&nbsp;</a></span>findPath()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -273,206 +491,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">int APEXPass::createCallGraph </td>
+          <td class="memname">void APEXPass::findPath </td>
           <td>(</td>
           <td class="paramtype">const Module &amp;&#160;</td>
-          <td class="paramname"><em>M</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>root</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">std::vector&lt; std::pair&lt; Function *, std::vector&lt; Function *&gt;&gt;&gt; &amp;&#160;</td>
-          <td class="paramname"><em>callgraph</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">private</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Creates callgraph from module M, starting from the function with global id specified in root. </p>
-<p>Callgraph is saved in vector callgraph in the pairs of the following format: &lt;caller function, vector of called functions&gt;.</p>
-<p>Returns: 0 in case of success, -1 if error. </p>
-
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00298">298</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
-
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00268">functionGetCallees()</a>, <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
-
-</div>
-</div>
-<a id="a4dd57cccc5d28bcb6c399dbbf0b154d2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4dd57cccc5d28bcb6c399dbbf0b154d2">&#9670;&nbsp;</a></span>findPath()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">int APEXPass::findPath </td>
-          <td>(</td>
-          <td class="paramtype">const std::vector&lt; std::pair&lt; Function *, std::vector&lt; Function *&gt;&gt;&gt; &amp;&#160;</td>
-          <td class="paramname"><em>callgraph</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>source</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>target</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">std::vector&lt; Function *&gt; &amp;&#160;</td>
-          <td class="paramname"><em>final_path</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">private</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Uses BFS to find path in callgraph from source to target (both are global Function IDs). </p>
-<p>Result is stored in the final_path vector.</p>
-<p>Returns: 0 in success, -1 if error. </p>
-
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00364">364</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
-
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>, and <a class="el" href="apex_8cpp_source.html#l00144">logPrintUnderline()</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
-
-</div>
-</div>
-<a id="a4646fbbafab88e38c3377ce1cb225754"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4646fbbafab88e38c3377ce1cb225754">&#9670;&nbsp;</a></span>functionGetCallees()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">int APEXPass::functionGetCallees </td>
-          <td>(</td>
-          <td class="paramtype">const Function *&#160;</td>
-          <td class="paramname"><em>F</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">std::vector&lt; Function *&gt; &amp;&#160;</td>
-          <td class="paramname"><em>callees</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">private</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Collects functions that are called by function F into vector callees. </p>
-<p>Returns: 0 in case of success, -1 if error. </p>
-
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00268">268</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
-
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00298">createCallGraph()</a>.</p>
-
-</div>
-</div>
-<a id="a1258c9dd01922617edb48fe5802054ec"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1258c9dd01922617edb48fe5802054ec">&#9670;&nbsp;</a></span>functionGetCallers()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">int APEXPass::functionGetCallers </td>
-          <td>(</td>
-          <td class="paramtype">const Function *&#160;</td>
-          <td class="paramname"><em>F</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">std::vector&lt; Function *&gt; &amp;&#160;</td>
-          <td class="paramname"><em>callers</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">private</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Collects functions that call function F into vector callers. </p>
-<p>Returns: 0 in case of success, -1 if error. </p>
-
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00244">244</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
-
-</div>
-</div>
-<a id="aa31ca4e0ca4bcc00e6352e01b59a320d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa31ca4e0ca4bcc00e6352e01b59a320d">&#9670;&nbsp;</a></span>functionRemove()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">int APEXPass::functionRemove </td>
-          <td>(</td>
-          <td class="paramtype">Function *&#160;</td>
-          <td class="paramname"><em>F</em></td><td>)</td>
+          <td class="paramname"><em>M</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -483,19 +505,19 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Takes pointer to a function F, removes all calls to this function and then removes function F itself. </p>
-<p>Returns: 0 if successful or -1 in case of error. </p>
+<p>Finds blocks in the source function and starts exploring  from these blocks using BFS. </p>
+<p>Computes path from source function to target function. Stores results in the .  contains dependency blocks that are on the execution flow. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00221">221</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00153">153</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00182">functionRemoveCalls()</a>, and <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>, <a class="el" href="apex_8h_source.html#l00114">path_</a>, <a class="el" href="apex_8h_source.html#l00100">source_function_id_</a>, and <a class="el" href="apex_8h_source.html#l00103">target_instructions_</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00013">runOnModule()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
 
 </div>
 </div>
-<a id="a72ee6e0fba1702e36a302526482d6873"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a72ee6e0fba1702e36a302526482d6873">&#9670;&nbsp;</a></span>functionRemoveCalls()</h2>
+<a id="a508efe7541a8f8dbf57b6865a7ad1a17"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a508efe7541a8f8dbf57b6865a7ad1a17">&#9670;&nbsp;</a></span>functionIsProtected()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -504,7 +526,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">int APEXPass::functionRemoveCalls </td>
+          <td class="memname">bool APEXPass::functionIsProtected </td>
           <td>(</td>
           <td class="paramtype">const Function *&#160;</td>
           <td class="paramname"><em>F</em></td><td>)</td>
@@ -518,14 +540,176 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table>
 </div><div class="memdoc">
 
-<p>Takes pointer to function F, iterates over instructions calling this function and removes these instructions. </p>
-<p>Returns: number of removed instructions, -1 in case of error. </p>
+<p>Returns true if function  is protected, Protected functions will not be removed at the end of the <a class="el" href="classAPEXPass.html" title="Actual APEX pass. ">APEXPass</a>. </p>
 
-<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00182">182</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00135">135</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00139">logPrint()</a>.</p>
+<p class="reference">References <a class="el" href="apex_8h_source.html#l00123">protected_functions_</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00221">functionRemove()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00485">apexDgComputeFunctionDependencyBlocks()</a>, and <a class="el" href="apex_8cpp_source.html#l00903">removeUnneededStuff()</a>.</p>
+
+</div>
+</div>
+<a id="a17cc8e36dc7b7414137b9c3758a5a504"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a17cc8e36dc7b7414137b9c3758a5a504">&#9670;&nbsp;</a></span>moduleInjectExitExtract()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::moduleInjectExitExtract </td>
+          <td>(</td>
+          <td class="paramtype">Module &amp;&#160;</td>
+          <td class="paramname"><em>M</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Injects _apex_exit() call at the end of the . </p>
+<p>Injects lib_dump_int() call before lib_exit(). </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00770">770</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>, <a class="el" href="apex_8cpp_source.html#l00122">logPrintFlat()</a>, and <a class="el" href="apex_8h_source.html#l00103">target_instructions_</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
+
+</div>
+</div>
+<a id="aab79bc7cf7400bd067053a203ede05e3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aab79bc7cf7400bd067053a203ede05e3">&#9670;&nbsp;</a></span>moduleParseCmdLineArgsOrDie()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::moduleParseCmdLineArgsOrDie </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Parses command line arguments from opt. </p>
+<p>Dies if arguments are missing or are in from format. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l00717">717</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>, <a class="el" href="apex_8cpp_source.html#l00103">logPrintDbg()</a>, and <a class="el" href="apex_8h_source.html#l00103">target_instructions_</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
+
+</div>
+</div>
+<a id="a25a0a2ce34252636d035a05954091b4c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a25a0a2ce34252636d035a05954091b4c">&#9670;&nbsp;</a></span>stripAllDebugSymbols()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void APEXPass::stripAllDebugSymbols </td>
+          <td>(</td>
+          <td class="paramtype">Module &amp;&#160;</td>
+          <td class="paramname"><em>M</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Strips debug symbols from every function in module . </p>
+<p>We do this because LLVM verifier would blow up after we inserted into the module instructions without debug symbols. This way, module will be consistent. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8cpp_source.html#l01235">1235</a> of file <a class="el" href="apex_8cpp_source.html">apex.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="apex_8cpp_source.html#l00098">logPrint()</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00019">runOnModule()</a>.</p>
+
+</div>
+</div>
+<h2 class="groupheader">Field Documentation</h2>
+<a id="aa6e98e6236c6842e4c367402724cbb80"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa6e98e6236c6842e4c367402724cbb80">&#9670;&nbsp;</a></span>path_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;DependencyBlock&gt; APEXPass::path_</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>is the representation of computed execution path. </p>
+<p>It holds pair of function and dependency block from function through which is the execution "flowing". </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00114">114</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l00153">findPath()</a>, <a class="el" href="apex_8cpp_source.html#l00235">printPath()</a>, and <a class="el" href="apex_8cpp_source.html#l00903">removeUnneededStuff()</a>.</p>
+
+</div>
+</div>
+<a id="a8967d5e37e53232eb3eefcb81c04a9c6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8967d5e37e53232eb3eefcb81c04a9c6">&#9670;&nbsp;</a></span>protected_functions_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;std::string&gt; APEXPass::protected_functions_</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<b>Initial value:</b><div class="fragment"><div class="line">= {</div><div class="line">            </div><div class="line">            <span class="stringliteral">&quot;_apex_exit&quot;</span>,</div><div class="line">            <span class="stringliteral">&quot;_apex_extract_int&quot;</span>,</div><div class="line"></div><div class="line">            </div><div class="line">            <span class="stringliteral">&quot;llvm.stackrestore&quot;</span>,</div><div class="line">            <span class="stringliteral">&quot;llvm.stacksave&quot;</span>,</div><div class="line">    }</div></div><!-- fragment -->
+<p>Protected functions IDs. These will not be removed by <a class="el" href="classAPEXPass.html" title="Actual APEX pass. ">APEXPass</a>. </p>
+
+<p class="definition">Definition at line <a class="el" href="apex_8h_source.html#l00123">123</a> of file <a class="el" href="apex_8h_source.html">apex.h</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="apex_8cpp_source.html#l01246">collectProtectedFunctions()</a>, and <a class="el" href="apex_8cpp_source.html#l00135">functionIsProtected()</a>.</p>
 
 </div>
 </div>
