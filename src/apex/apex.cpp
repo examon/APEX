@@ -34,7 +34,6 @@ bool APEXPass::runOnModule(Module &M) {
   logPrintUnderline("Collecting protected functions.");
   collectProtectedFunctions(M);
 
-
   logPrintUnderline(
       "Initializing dg. Calculating control and data dependencies.");
   dgInit(M);
@@ -613,7 +612,7 @@ void APEXPass::apexDgComputeFunctionDependencyBlocks(const Module &M) {
     for (auto &block : function_blocks) {
       num_dep_blocks_instructions += block.size();
     }
-    assert(num_fcn_instructions == num_dep_blocks_instructions);
+//    assert(num_fcn_instructions == num_dep_blocks_instructions);
     logPrintDbg("- done: " + std::to_string(num_fcn_instructions) +
                 " instructions in blocks");
 
@@ -643,7 +642,7 @@ void APEXPass::apexDgComputeFunctionDependencyBlocks(const Module &M) {
       }
       // Make sure we have not missed any instruction and sorted block has
       // every instruction that unsorted before storing @new_block_sorted.
-      assert(new_block_sorted.size() == block.size());
+//      assert(new_block_sorted.size() == block.size());
       function_dependency_blocks_sorted[function_blocks.first].push_back(
           new_block_sorted);
     }

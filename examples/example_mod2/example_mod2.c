@@ -4,7 +4,7 @@ int foo(int n) {
 }
 
 int qux(void) {
-    return 42;
+	return 42;
 }
 
 int bar(void) {
@@ -13,9 +13,11 @@ int bar(void) {
 }
 
 int main(void) {
-    int some_int = 10;
-    int foo_result = foo(some_int);
-    int bar_result = bar();
-
+  int some_int = 10;
+  int foo_result = foo(some_int);
+  int n = 10;
+  if (n < 42) {
+		int bar_result = bar();
+	}
     return 0;
 }

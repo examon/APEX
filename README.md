@@ -1,5 +1,3 @@
-# OUTDATED
-
 # APEX - Active code Path EXtractor
 
 APEX is a tool that can extract active code path from the C program source code
@@ -12,46 +10,57 @@ In order to run APEX, you need to have llvm installed:
 - https://llvm.org/docs/GettingStarted.html
 - https://releases.llvm.org/3.8.0/docs/CMake.html
 
+If you want to build LLVM from source, run:
+``` shell
+cd src
+./build_llvm.sh
+```
+
+After getting LLVM, APEX needs to be built. Run the following command
+to build APEX:
+``` shell
+make build
+```
 
 ### How to run APEX
 
-Input C source code is located in the [test.c](c-code/test.c). <br>
-Source and target functions defining start and end of the active code path can
-be specified in the [apex.h](apex/apex.h).
+First, you need to compile your C program into LLVM bitcode since APEX cannot
+work directly with the C source code.
 
-After providing input, run `make run`. Check `apex/build` for output.
+``` bash
+clang -c -g -emit-llvm main.c -o main.bc
+```
 
+After obtaining bitcode, we can now run APEX via `apex.py` launcher:
 
-### How it works
+```
+python apex.py main.bc main.c 16
+```
 
-Let's say we have C source file [test.c](c-code/test.c) and we want to
-extract active path between functions `main` and `y` (we specify these inputs
-according to the instructions above).
+`apex.py` requires three arguments. See usage for full description:
 
-After running `make run`, APEX:
-- uses llvm and translates `test.c` into IR (intermediate representation)
-- creates call graph from the IR
-- finds some active code path from source (`main`) to target (`y`)
-- removes functions that are not on the active code path
+``` bash
+usage: apex.py [-h] [--export EXPORT] code file line
 
-To run extracted active code path, type `lli apex/build/bytecode_from_input_basic_opts_and_apex.bc`
-(see [build_and_run.sh](build_and_run.sh) script for more info).
+positional arguments:
+  code             C source code compiled into LLVM bytecode.
+  file             Target file name (NOT FULL PATH).
+  line             Target line number.
 
-Image on the left represents call graph before we run APEX, while image on the
-right shows how the call graph looks after APEX transformed IR. <br>
+optional arguments:
+  -h, --help       show this help message and exit
+  --export EXPORT  true/false for exporting call graphs.
+```
 
-![](img/callgraph_default_opt.dot.svg) ![](img/callgraph_apex.dot.svg)
+APEX produces extracted executable called `extracted` along with the `build`
+directory (containing various files, logs, etc.).
 
 
 ### Current limitations:
 
 Since APEX is under development, there are currently some serious limitations:
 
-```
-- supports only one compilation module
-- handles only void returning functions on the active path
-- does not handle external libraries
-- (probably tons more that I don't know about)
-```
-
-[TODO](TODO.md) | [DOC](DOC.md)
+- It is possible to extract values only from integer variables.
+- APEX can handle small programs (see examples direcotry), but may have problems
+with bigger ones.
+- (Probably tons more that I don't know about.)

@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 /// Function used for getting out of the program, usually after calling @_apex_extract_int().
 void _apex_exit(int exit_code) {
